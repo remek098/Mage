@@ -1,0 +1,14 @@
+/.vs/
+/x64/
+
+# Engine binaries
+/Engine/x64/
+
+# WPF obj directory that gets generated
+/MageEditor/obj/
+
+# Ignore Visual Studio / VSCode temporary files
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
