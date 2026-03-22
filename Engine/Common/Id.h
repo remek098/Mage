@@ -8,42 +8,50 @@ namespace mage::id {
 	*/
 	using id_type = u32;
 
-	// index part gives us the index of the entity in lookup array.
-	// generation part is used to distinguish entities created at the same index slot
-	
-	constexpr u32 generation_bits{ 8 };
-	constexpr u32 index_bits{ sizeof(id_type) * 8 - generation_bits};
 
-	// mask to be able to retrieve information
-	constexpr id_type generation_mask{ (id_type{1} << generation_bits) - 1 };
-	constexpr id_type index_mask{ (id_type{1} << index_bits) - 1 };
+	namespace internal {
+		// index part gives us the index of the entity in lookup array.
+		// generation part is used to distinguish entities created at the same index slot
+
+		constexpr u32 generation_bits{ 8 };
+		constexpr u32 index_bits{ sizeof(id_type) * 8 - generation_bits };
+
+		// mask to be able to retrieve information
+		constexpr id_type generation_mask{ ( id_type{1} << generation_bits ) - 1 };
+		constexpr id_type index_mask{ ( id_type{1} << index_bits ) - 1 };
+	}
+
 
 	// invalid id for any id type -> means basically all bits are set to 1
-	constexpr id_type id_mask{ id_type{-1} };
+	constexpr id_type invalid_id{ id_type(-1) };
+	constexpr u32 min_deleted_elements{ 1024 };
 
 
-	using generation_type = std::conditional_t<generation_bits <= 16, std::conditional_t<generation_bits <= 8, u8, u16>, u32>;
+	using generation_type = std::conditional_t<internal::generation_bits <= 16, 
+		std::conditional_t<internal::generation_bits <= 8, u8, u16>, u32>;
 	
 	
 	// some static asserts to make sure we don't f it up
-	static_assert(sizeof(generation_type) * 8 >= generation_bits);
+	static_assert(sizeof(generation_type) * 8 >= internal::generation_bits);
 	static_assert((sizeof(id_type) - sizeof(generation_type)) > 0);
 
 
 	// id is valid when it's not -1 (id_type is unsigned value type)
-	inline bool is_valid(id_type id) {
-		return id != id_mask;
+	constexpr bool is_valid(id_type id) {
+		return id != invalid_id;
 	}
 
-	inline id_type index(id_type id) {
-		return id & index_mask;
+	constexpr id_type index(id_type id) {
+		id_type index{ id & internal::index_mask };
+		assert(index != internal::index_mask);
+		return index;
 	}
 
-	inline id_type generation(id_type id) {
-		return (id >> index_bits) & generation_mask;
+	constexpr id_type generation(id_type id) {
+		return (id >> internal::index_bits) & internal::generation_mask;
 	}
 
-	inline id_type new_generation(id_type id) {
+	constexpr id_type new_generation(id_type id) {
 		const id_type generation{ id::generation(id) + 1 };
 
 		// check if we don't exceed the max amount this unsigned type can hold -> e.g.
@@ -52,9 +60,9 @@ namespace mage::id {
 		// u32 -> 4294967295
 		// assert(generation < std::numeric_limits<generation_type>::max());
 		
-		// I am going to do this since I don't plan on ever having more entities than this setup can provide. (8 bits for generation, rest 24 bits for index)
-		assert(generation < 255);
-		return index(id) | (generation << index_bits);
+		// calc this value on the fly to make sure bits stay like they should when we manipulate generation_bits
+		assert(generation < (((u64)1 << internal::generation_bits) - 1));
+		return index(id) | (generation << internal::index_bits);
 	}
 
 
@@ -82,7 +90,7 @@ namespace mage::id {
 		constexpr explicit name(id::id_type id)								\
 			: id_base{id} {}												\
 																			\
-		constexpr name() : id_base{id::id_mask} {}							\
+		constexpr name() : id_base{ 0 } {}                                  \
 	};
 #else
 #define DEFINE_TYPED_ID(name) using name = id::id_type;
