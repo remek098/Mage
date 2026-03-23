@@ -12,6 +12,6 @@ namespace mage::transform {
 
 	// NOTE: every entity has transform component and entity keeps track of generations of itself,
 	// managing transform components with usage of these 2 functions below
-	component		create_transform(const init_info& info, game_entity::entity entity);
-	void			remove_transform(component comp);
+	Component		create_transform(const init_info& info, game_entity::Entity entity);
+	void			remove_transform(Component comp);
 }

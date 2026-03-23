@@ -18,9 +18,9 @@ namespace mage {
 			transform::init_info* tranform{ nullptr };
 		};
 
-		entity create_game_entity(const entity_info& info);
-		void remove_game_entity(entity e);
+		Entity create_game_entity(const entity_info& info);
+		void remove_game_entity(Entity e);
 
-		bool is_alive(entity e);
+		bool is_alive(Entity e);
 	}
 }

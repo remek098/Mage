@@ -13,7 +13,7 @@ namespace mage::id {
 		// index part gives us the index of the entity in lookup array.
 		// generation part is used to distinguish entities created at the same index slot
 
-		constexpr u32 generation_bits{ 8 };
+		constexpr u32 generation_bits{ 10 };
 		constexpr u32 index_bits{ sizeof(id_type) * 8 - generation_bits };
 
 		// mask to be able to retrieve information
