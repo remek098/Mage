@@ -59,15 +59,31 @@ namespace MageEditor.GameProject
         public ICommand AddGameEntityCommand { get; private set; }
         public ICommand RemoveGameEntityCommand { get; private set; }
 
-        private void AddGameEntity(GameEntity entity)
+        private void AddGameEntity(GameEntity entity, int index = -1)
         {
             Debug.Assert(!_gameEntities.Contains(entity));
-            _gameEntities.Add(entity);
+
+            // entity can be active only if scene is active; only then these entities are loaded with engine
+            entity.IsActive = IsActive;
+
+            // means it's a new entity and we gotta add it
+            if(index == -1)
+            {
+                _gameEntities.Add(entity);
+            }
+            else
+            {
+                // probably this entity comes from UndoRedo action
+                _gameEntities.Insert(index, entity);
+            }
+
         }
 
         private void RemoveGameEntity(GameEntity entity)
         {
             Debug.Assert(_gameEntities.Contains(entity));
+
+            entity.IsActive = false;
             _gameEntities.Remove(entity);
         }
 
@@ -75,12 +91,20 @@ namespace MageEditor.GameProject
         private void OnDeserialized(StreamingContext context)
         {
             //if (_gameEntities == null) _gameEntities = new ObservableCollection<GameEntity>();
-         
+
             if (_gameEntities != null)
             {
                 GameEntities = new ReadOnlyObservableCollection<GameEntity>(_gameEntities);
                 OnPropertyChanged(nameof(GameEntities)); // this makes the controls to update it's bindings to this list.
+
+
+                // whenever project is loaded, we should set entities accordingly.
+                foreach (var entity in _gameEntities)
+                {
+                    entity.IsActive = IsActive;
+                }
             }
+
 
             AddGameEntityCommand = new RelayCommand<GameEntity>(x =>
             {
@@ -90,7 +114,7 @@ namespace MageEditor.GameProject
                 if(entityIndex.HasValue)
                     Project.UndoRedo.Add(new UndoRedoAction(
                         () => RemoveGameEntity(x),
-                        () => _gameEntities?.Insert(entityIndex.Value, x),
+                        () => AddGameEntity(x, entityIndex.Value),
                         $"Add {x?.Name} to {Name}"
                     ));
 
@@ -103,7 +127,7 @@ namespace MageEditor.GameProject
 
                     if (entityIndex.HasValue)
                         Project.UndoRedo.Add(new UndoRedoAction(
-                            () => _gameEntities?.Insert(entityIndex.Value, x),
+                            () => AddGameEntity(x, entityIndex.Value),
                             () => RemoveGameEntity(x),
                             $"Remove {x.Name}"
                         ));

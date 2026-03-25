@@ -35,8 +35,8 @@ private:
         u32 count = rand() % 20; // random number between 0-20
         if ( _entities.empty() ) count = 1000;
 
-        transform::init_info transform_info{};
-        game_entity::entity_info entity_info{ &transform_info };
+        transform::InitInfo transform_info{};
+        game_entity::EntityInfo entity_info{ &transform_info };
 
         while ( count > 0 ) {
             ++_added;

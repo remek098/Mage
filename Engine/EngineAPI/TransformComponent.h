@@ -3,6 +3,8 @@
 #include "../Components/ComponentsCommon.h"
 
 namespace mage::transform {
+    // in lower case because transform_id undercover is just an 
+    // id::id_type which is u32 for now. Can be diffrent unsigned integer type
     DEFINE_TYPED_ID(transform_id);
 
     class Component final {

@@ -5,6 +5,8 @@
 
 namespace mage::game_entity {
 
+	// in lower case because entity_id undercover is just an 
+	// id::id_type which is u32 for now. Can be diffrent unsigned integer type
 	DEFINE_TYPED_ID(entity_id);
 
 	class Entity {

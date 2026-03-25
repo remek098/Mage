@@ -27,13 +27,13 @@ namespace mage::id {
 	constexpr u32 min_deleted_elements{ 1024 };
 
 
-	using generation_type = std::conditional_t<internal::generation_bits <= 16, 
+	using gen_type = std::conditional_t<internal::generation_bits <= 16, 
 		std::conditional_t<internal::generation_bits <= 8, u8, u16>, u32>;
 	
 	
 	// some static asserts to make sure we don't f it up
-	static_assert(sizeof(generation_type) * 8 >= internal::generation_bits);
-	static_assert((sizeof(id_type) - sizeof(generation_type)) > 0);
+	static_assert(sizeof(gen_type) * 8 >= internal::generation_bits);
+	static_assert((sizeof(id_type) - sizeof(gen_type)) > 0);
 
 
 	// id is valid when it's not -1 (id_type is unsigned value type)
@@ -58,7 +58,7 @@ namespace mage::id {
 		// u8 -> 255
 		// u16 -> 65535
 		// u32 -> 4294967295
-		// assert(generation < std::numeric_limits<generation_type>::max());
+		// assert(generation < std::numeric_limits<gen_type>::max());
 		
 		// calc this value on the fly to make sure bits stay like they should when we manipulate generation_bits
 		assert(generation < (((u64)1 << internal::generation_bits) - 1));
@@ -70,9 +70,9 @@ namespace mage::id {
 #if _DEBUG
 	namespace internal
 	{
-		struct id_base
+		struct IdBase
 		{
-			constexpr explicit id_base(id_type id) : _id{ id } {}
+			constexpr explicit IdBase(id_type id) : _id{ id } {}
 
 			// for doing e.g. u32 id = ...
 			constexpr operator id_type() const { return _id; }
@@ -85,12 +85,12 @@ namespace mage::id {
 
 // one constructor takes value, other initializes with invalid index.
 #define DEFINE_TYPED_ID(name)												\
-	struct name final : id::internal::id_base								\
+	struct name final : id::internal::IdBase								\
 	{																		\
 		constexpr explicit name(id::id_type id)								\
-			: id_base{id} {}												\
+			: IdBase{id} {}													\
 																			\
-		constexpr name() : id_base{ 0 } {}                                  \
+		constexpr name() : IdBase{ 0 } {}									\
 	};
 #else
 #define DEFINE_TYPED_ID(name) using name = id::id_type;

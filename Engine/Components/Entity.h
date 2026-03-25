@@ -4,7 +4,7 @@
 
 namespace mage {
 
-#define INIT_INFO(component) namespace component { struct init_info; }
+#define INIT_INFO(component) namespace component { struct InitInfo; }
 
 	// forward decleration
 	INIT_INFO(transform)
@@ -14,11 +14,11 @@ namespace mage {
 
 
 	namespace game_entity {
-		struct entity_info {
-			transform::init_info* tranform{ nullptr };
+		struct EntityInfo {
+			transform::InitInfo* tranform{ nullptr };
 		};
 
-		Entity create_game_entity(const entity_info& info);
+		Entity create_game_entity(const EntityInfo& info);
 		void remove_game_entity(Entity e);
 
 		bool is_alive(Entity e);

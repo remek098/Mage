@@ -63,7 +63,7 @@ namespace MageEditor.Editors
             ));
 
 
-            MSGameEntity msEntity = null;
+            MSGameEntity? msEntity = null;
             if(newSelection != null &&  newSelection.Any())
             {
                 msEntity = new MSGameEntity(newSelection);

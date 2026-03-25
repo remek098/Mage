@@ -9,8 +9,7 @@ namespace mage::transform {
         utl::vector<math::vec3> scales;
     } // anonymous namespace
 
-    Component
-    create_transform(const init_info& info, game_entity::Entity entity) {
+    Component create_transform(const InitInfo& info, game_entity::Entity entity) {
         assert(entity.is_valid());
         const id::id_type entity_index{ id::index(entity.get_id()) };
 
@@ -32,26 +31,22 @@ namespace mage::transform {
     }
 
 
-    void
-    remove_transform(Component comp) {
+    void remove_transform(Component comp) {
         assert(comp.is_valid());
     }
 
 
-    math::vec4 
-    Component::rotation() const {
+    math::vec4 Component::rotation() const {
         assert(is_valid());
         return rotations[id::index(_id)];
     }
     
-    math::vec3 
-    Component::position() const {
+    math::vec3 Component::position() const {
         assert(is_valid());
         return positions[id::index(_id)];
     }
     
-    math::vec3 
-    Component::scale() const {
+    math::vec3 Component::scale() const {
         assert(is_valid());
         return scales[id::index(_id)];
     }

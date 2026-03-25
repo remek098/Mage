@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "MageEditor": {
+      "commandName": "Project",
+      "nativeDebugging": true
+    }
+  }
+}
