@@ -18,7 +18,7 @@
             <RowDefinition Height="20"/>
             <RowDefinition/>
         </Grid.RowDefinitions>
-        <StackPanel Orientation="Horizontal" Background="DarkGray">
+        <StackPanel Orientation="Horizontal">
             <Button Content="Undo" Command="{Binding UndoCommand}"/>
             <Button Content="Redo" Command="{Binding RedoCommand}" Margin="5, 0, 0, 0"/>
         </StackPanel>

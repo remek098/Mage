@@ -6,7 +6,7 @@ using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace MageEditor
+namespace MageEditor.Common
 {
     // can have references to object in serialization file
     [DataContract(IsReference = true)]

@@ -1,5 +1,4 @@
 ﻿using MageEditor.Components;
-using MageEditor.EngineAPIStructs;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -8,7 +7,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace MageEditor.EngineAPIStructs
+namespace MageEditor.DllWrappers
 {
     // define all appropriate structs the same way as they've been defined inside EngineDLL project.
     [StructLayout(LayoutKind.Sequential)]

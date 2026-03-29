@@ -6,7 +6,12 @@
         xmlns:local="clr-namespace:MageEditor"
         xmlns:editors="clr-namespace:MageEditor.Editors"
         mc:Ignorable="d" WindowStartupLocation="CenterScreen"
-        Title="Mage Editor" Height="1080" Width="1920">
+        Title="Mage Editor" Height="1080" Width="1920"
+        Style="{StaticResource MageWindowStyle}"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType">
     <Grid>
         <editors:WorldEditorView/>
     </Grid>

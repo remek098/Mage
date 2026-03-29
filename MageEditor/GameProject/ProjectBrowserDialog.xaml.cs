@@ -9,6 +9,7 @@ using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 
@@ -19,6 +20,9 @@ namespace MageEditor.GameProject
     /// </summary>
     public partial class ProjectBrowserDialog : Window
     {
+        private readonly CubicEase _animEasing = new CubicEase() { EasingMode = EasingMode.EaseInOut };
+
+        // https://learn.microsoft.com/en-us/dotnet/desktop/wpf/graphics-multimedia/easing-functions
         public ProjectBrowserDialog()
         {
             InitializeComponent();
@@ -37,6 +41,38 @@ namespace MageEditor.GameProject
             }
         }
 
+
+        private void AnimateToCreateProject()
+        {
+            // https://learn.microsoft.com/en-us/dotnet/api/system.windows.media.animation.doubleanimation?view=windowsdesktop-10.0
+            // https://learn.microsoft.com/en-us/dotnet/api/system.windows.media.animation.thicknessanimation?view=windowsdesktop-10.0
+            var highlightAnim = new DoubleAnimation(200, 420, new Duration(TimeSpan.FromSeconds(0.2)));
+            highlightAnim.EasingFunction = _animEasing;
+            highlightAnim.Completed += (s, e) =>
+            {
+                var anim = new ThicknessAnimation(new Thickness(0), new Thickness(-800, 0, 0, 0), new Duration(TimeSpan.FromSeconds(0.5)));
+                anim.EasingFunction = _animEasing;
+                browserContent.BeginAnimation(MarginProperty, anim);
+            };
+            highlightRect.BeginAnimation(Canvas.LeftProperty, highlightAnim);
+        }
+
+        private void AnimateToOpenProject()
+        {
+            // https://learn.microsoft.com/en-us/dotnet/api/system.windows.media.animation.doubleanimation?view=windowsdesktop-10.0
+            // https://learn.microsoft.com/en-us/dotnet/api/system.windows.media.animation.thicknessanimation?view=windowsdesktop-10.0
+            var highlightAnim = new DoubleAnimation(420, 200, new Duration(TimeSpan.FromSeconds(0.2)));
+            highlightAnim.EasingFunction = _animEasing;
+            highlightAnim.Completed += (s, e) =>
+            {
+                var anim = new ThicknessAnimation(new Thickness(-800, 0, 0, 0), new Thickness(0), new Duration(TimeSpan.FromSeconds(0.5)));
+                anim.EasingFunction = _animEasing;
+                browserContent.BeginAnimation(MarginProperty, anim);
+            };
+            highlightRect.BeginAnimation(Canvas.LeftProperty, highlightAnim);
+        }
+
+
         private void OnToggleButton_Click(object sender, RoutedEventArgs e)
         {
             if(sender == openProjectButton)
@@ -44,7 +80,10 @@ namespace MageEditor.GameProject
                 if(createProjectButton.IsChecked == true)
                 {
                     createProjectButton.IsChecked = false;
-                    browserContent.Margin = new Thickness(0);
+                    AnimateToOpenProject();
+                    openProjectView.IsEnabled = true;
+                    newProjectView.IsEnabled = false;
+                    // browserContent.Margin = new Thickness(0);
                 }
                 openProjectButton.IsChecked = true;
             }
@@ -53,10 +92,14 @@ namespace MageEditor.GameProject
                 if (openProjectButton.IsChecked == true)
                 {
                     openProjectButton.IsChecked = false;
-                    browserContent.Margin = new Thickness(-800, 0, 0, 0);
+                    AnimateToCreateProject();
+                    openProjectView.IsEnabled = false;
+                    newProjectView.IsEnabled = true;
+                    //browserContent.Margin = new Thickness(-800, 0, 0, 0);
                 }
                 createProjectButton.IsChecked = true;
             }
         }
+
     }
 }

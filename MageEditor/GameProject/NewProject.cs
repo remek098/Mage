@@ -9,6 +9,7 @@ using System.Diagnostics;
 using System.Runtime.Serialization;
 using MageEditor.Utilities;
 using System.Collections.ObjectModel;
+using MageEditor.Common;
 
 namespace MageEditor.GameProject
 {

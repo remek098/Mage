@@ -1,4 +1,5 @@
-﻿using MageEditor.DllWrappers;
+﻿using MageEditor.Common;
+using MageEditor.DllWrappers;
 using MageEditor.GameProject;
 using MageEditor.Utilities;
 using System;

@@ -10,6 +10,7 @@ using System.Diagnostics;
 using System.IO;
 using MageEditor.Utilities;
 using System.Windows.Input;
+using MageEditor.Common;
 
 namespace MageEditor.GameProject
 {
