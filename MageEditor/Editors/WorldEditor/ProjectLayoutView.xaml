@@ -30,7 +30,7 @@
                             <Expander.Header>
                                 <Grid>
                                     <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="{Binding Name}"/>
+                                        <TextBlock Text="{Binding Name}" Style="{StaticResource LightTextBlockStyle}"/>
                                         <!-- We need to give remove command a parameter which is the current element that's why CommandParameter is as it is-->
                                         <Button Content="Remove" 
                                                 Command="{Binding DataContext.RemoveSceneCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"

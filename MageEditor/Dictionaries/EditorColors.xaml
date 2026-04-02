@@ -14,9 +14,11 @@
     <Color x:Key="Editor.GreenColor">#ff90ee90</Color>
     <Color x:Key="Editor.BlueColor">#ff60deee</Color>
     <Color x:Key="Editor.OrangeColor">#ffffaa80</Color>
+    <Color x:Key="Editor.YellowColor">#ffffff80</Color>
     <Color x:Key="Editor.PurpleColor">#ffdd67dd</Color>
     <Color x:Key="Editor.LightPurpleColor">#ffffa0dd</Color>
     <Color x:Key="Editor.Selected.BackgroundColor">#ff3c67b6</Color>
+    <Color x:Key="Editor.Selected.BackgroundColorWarm">#ffeeaa80</Color>
 
     <SolidColorBrush Color="{StaticResource Editor.Window.GrayColor1}" x:Key="Editor.Window.GrayBrush1"/>
     <SolidColorBrush Color="{StaticResource Editor.Window.GrayColor2}" x:Key="Editor.Window.GrayBrush2"/>
@@ -31,7 +33,9 @@
     <SolidColorBrush Color="{StaticResource Editor.GreenColor}" x:Key="Editor.GreenBrush"/>
     <SolidColorBrush Color="{StaticResource Editor.BlueColor}" x:Key="Editor.BlueBrush"/>
     <SolidColorBrush Color="{StaticResource Editor.OrangeColor}" x:Key="Editor.OrangeBrush"/>
+    <SolidColorBrush Color="{StaticResource Editor.YellowColor}" x:Key="Editor.YellowBrush"/>
     <SolidColorBrush Color="{StaticResource Editor.PurpleColor}" x:Key="Editor.PurpleBrush"/>
     <SolidColorBrush Color="{StaticResource Editor.LightPurpleColor}" x:Key="Editor.LightPurpleBrush"/>
     <SolidColorBrush Color="{StaticResource Editor.Selected.BackgroundColor}" x:Key="Editor.Selected.BackgroundBrush"/>
+    <SolidColorBrush Color="{StaticResource Editor.Selected.BackgroundColorWarm}" x:Key="Editor.Selected.BackgroundBrushWarm"/>
 </ResourceDictionary>
