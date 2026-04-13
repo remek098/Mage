@@ -104,9 +104,16 @@ namespace MageEditor.Components
 
         public ReadOnlyObservableCollection<Component> Components { get; private set; }
 
+        // exact type -> gotta check if it's null though sometimes
+        public Component? GetComponent(Type type) => Components.FirstOrDefault(c => c.GetType() == type);
+        
+        // can include derived types -> say e.g. we want to get Transform, but we got another Component in our entity that also has Transform that derives from Component
+        public T GetComponent<T>() where T : Component => 
+            Components.OfType<T>().FirstOrDefault()
+                ?? throw new InvalidOperationException($"Component of type {typeof(T).Name} not found.");
 
-        public Component GetComponent(Type type) => Components.FirstOrDefault(c => c.GetType() == type);
-        public T GetComponent<T>() where T : Component => GetComponent(typeof(T)) as T;
+        // null if not the exact type; if exact type, then it's casted to it.
+        public T? TryGetComponent<T>() where T : Component => GetComponent(typeof(T)) as T;
         //public ICommand RenameCommand { get; private set; }
         //public ICommand IsEnabledCommand { get; private set; }
 
@@ -168,8 +175,8 @@ namespace MageEditor.Components
         }
 
         // string is a reference type
-        private string _name;
-        public string Name
+        private string? _name;
+        public string? Name
         {
             get => _name;
             set
@@ -220,7 +227,7 @@ namespace MageEditor.Components
             return value;
         }
 
-        public static string GetMixedValue(List<GameEntity> entities, Func<GameEntity, string> getProperty)
+        public static string? GetMixedValue(List<GameEntity> entities, Func<GameEntity, string> getProperty)
         {
             // if that's the only entity we're done, if more we compare the other values to the first one. If we can find entity that has other value, we have non-uniform value
             // and we got to return null. Otherwise we have uniform value and we can return it.
@@ -240,8 +247,8 @@ namespace MageEditor.Components
         {
             switch (propertyName)
             {
-                case nameof(IsEnabled): SelectedEntities.ForEach(x => x.IsEnabled = IsEnabled.Value); return true;
-                case nameof(Name): SelectedEntities.ForEach(x => x.Name = Name); return true;
+                case nameof(IsEnabled): SelectedEntities.ForEach(x => { if (IsEnabled is not null) x.IsEnabled = IsEnabled.Value; }); return true;
+                case nameof(Name): SelectedEntities.ForEach(x => { if(Name is not null) x.Name = Name; }); return true;
             }
             return false;
         }

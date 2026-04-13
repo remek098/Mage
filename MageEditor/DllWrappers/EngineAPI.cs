@@ -44,6 +44,9 @@ namespace MageEditor.DllWrappers
             // transform component
             {
                 var component = entity.GetComponent<Transform>();
+                //if(component is not null)
+                //{
+                //}
                 desc.Transform.Position = component.Position;
                 desc.Transform.Rotation = component.Rotation;
                 desc.Transform.Scale = component.Scale;

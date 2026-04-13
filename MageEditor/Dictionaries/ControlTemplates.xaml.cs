@@ -11,6 +11,42 @@ namespace MageEditor.Dictionaries
 {
     public partial class ControlTemplates : ResourceDictionary
     {
+        private void OnTextBoxRename_KeyDown(object sender, KeyEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            var exp = textBox?.GetBindingExpression(TextBox.TextProperty);
+            if (e.Key == Key.Enter)
+            {
+                if (textBox?.Tag is ICommand command && command.CanExecute(textBox.Text))
+                {
+                    command.Execute(textBox.Text);
+                }
+                else
+                {
+                    exp?.UpdateSource();
+                }
+                if(textBox != null) textBox.Visibility = Visibility.Collapsed;
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Escape)
+            {
+                exp?.UpdateTarget(); // means we read the old value and then clear focus so that we don't type in that TextBox anymore
+                if (textBox != null) textBox.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private void OnTextBoxRename_LostFocus(object sender, RoutedEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            var exp = textBox?.GetBindingExpression(TextBox.TextProperty);
+            if (exp != null && textBox is not null)
+            {
+                exp.UpdateTarget();
+                textBox.MoveFocus(new TraversalRequest(FocusNavigationDirection.Previous));
+                textBox.Visibility = Visibility.Collapsed;
+            }
+        }
+
         private void OnTextBox_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
         {
             var textBox = sender as TextBox;
@@ -56,5 +92,7 @@ namespace MageEditor.Dictionaries
             var window = (Window)((FrameworkElement)sender).TemplatedParent;
             window.WindowState = WindowState.Minimized;
         }
+
+        
     }
 }
