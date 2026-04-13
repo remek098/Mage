@@ -40,7 +40,16 @@
                     <StackPanel VerticalAlignment="Center">
                         <ctrl:NumberBox Value="0" SensitivityMultiplier="1"
                                     Foreground="{StaticResource Editor.FontBrush}"/>
-                        
+                        <ctrl:ScalarBox Value="10" SensitivityMultiplier="10"/>
+
+                        <ctrl:VectorBox X="0" Y="1" Z="2" W="3" VectorType="Vector2"/>
+                        <ctrl:VectorBox X="0" Y="1" Z="2" W="3" VectorType="Vector3"/>
+                        <ctrl:VectorBox X="0" Y="1" Z="2" W="3" VectorType="Vector4"/>
+
+                        <ctrl:VectorBox X="0" Y="1" Z="2" W="3" VectorType="Vector2" Orientation="Vertical"/>
+                        <ctrl:VectorBox X="0" Y="1" Z="2" W="3" VectorType="Vector3" Orientation="Vertical"/>
+                        <ctrl:VectorBox X="0" Y="1" Z="2" W="3" VectorType="Vector4" Orientation="Vertical"/>
+
                     </StackPanel>
                 </Border>
                 
