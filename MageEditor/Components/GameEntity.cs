@@ -50,10 +50,11 @@ namespace MageEditor.Components
                         EntityID = EngineAPI.CreateGameEntity(this);
                         Debug.Assert(ID.IsValid(_entityID));
                     }
-                    else
+                    else if(ID.IsValid(EntityID))
                     {
                         // remove entity on engine side
                         EngineAPI.RemoveGameEntity(this);
+                        EntityID = ID.INVALID_ID;
 
                     }
                         OnPropertyChanged(nameof(IsActive));
@@ -193,6 +194,13 @@ namespace MageEditor.Components
         // using IMSComponent interface so that we can support multiple components
         private readonly ObservableCollection<IMSComponent> _components = new ObservableCollection<IMSComponent>();
         public ReadOnlyObservableCollection<IMSComponent> Components { get; }
+
+        public T? GetMSComponent<T>() where T : IMSComponent
+        {
+            return (T?)Components.FirstOrDefault(x => x.GetType() == typeof(T));
+        }
+
+
 
         public List<GameEntity> SelectedEntities { get; }
 

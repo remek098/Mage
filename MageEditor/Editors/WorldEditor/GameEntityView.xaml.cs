@@ -74,11 +74,7 @@ namespace MageEditor.Editors
 
         private void OnName_TextBox_GotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
         {
-            // go through all selected entities and remember the names
-            var vm = DataContext as MSEntity;
-            // register an action with a copy of these names of all selected entities as List
-            var selection = vm?.SelectedEntities.Select(entity => (entity, entity.Name)).ToList();
-            
+            _propertyName = string.Empty;
             // undo action will change the name of each entity back to the copy we have saved.
             _undoAction = GetRenameAction();
         }
@@ -87,8 +83,6 @@ namespace MageEditor.Editors
         {
             if(_propertyName == nameof(MSEntity.Name) && _undoAction != null)
             {
-                var vm = DataContext as MSEntity;
-                var selection = vm?.SelectedEntities.Select(entity => (entity, entity.Name)).ToList();
                 var redoAction = GetRenameAction();
                 Project.UndoRedo.Add(new UndoRedoAction(_undoAction, redoAction, "Rename game entity"));
                 _propertyName = null;

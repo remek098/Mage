@@ -27,13 +27,22 @@
             </Grid.ColumnDefinitions>
 
             <TextBlock Text="Position" Grid.Column="0" Grid.Row="0"/>
-            <utl:VectorBox X="{Binding PosX}" Y="{Binding PosY}" Z="{Binding PosZ}" Grid.Column="1" Grid.Row="0"/>
+            <utl:VectorBox X="{Binding PosX}" Y="{Binding PosY}" Z="{Binding PosZ}" Grid.Column="1" Grid.Row="0"
+                           PreviewMouseLeftButtonDown="OnPositionVectorBoxPreviewMouse_LMB_Down"
+                           PreviewMouseLeftButtonUp="OnPositionVectorBoxPreviewMouse_LMB_Up"
+                           LostKeyboardFocus="OnPositionVectorBox_LostKeyboardFocus"/>
 
             <TextBlock Text="Rotation" Grid.Column="0" Grid.Row="1"/>
-            <utl:VectorBox X="{Binding RotX}" Y="{Binding RotY}" Z="{Binding RotZ}" Grid.Column="1" Grid.Row="1"/>
+            <utl:VectorBox X="{Binding RotX}" Y="{Binding RotY}" Z="{Binding RotZ}" Grid.Column="1" Grid.Row="1"
+                            PreviewMouseLeftButtonDown="OnRotationVectorBoxPreviewMouse_LMB_Down"
+                            PreviewMouseLeftButtonUp="OnRotationVectorBoxPreviewMouse_LMB_Up"
+                            LostKeyboardFocus="OnRotationVectorBox_LostKeyboardFocus"/>
 
             <TextBlock Text="Scale" Grid.Column="0" Grid.Row="2"/>
-            <utl:VectorBox X="{Binding ScaleX}" Y="{Binding ScaleY}" Z="{Binding ScaleZ}" Grid.Column="1" Grid.Row="2"/>
+            <utl:VectorBox X="{Binding ScaleX}" Y="{Binding ScaleY}" Z="{Binding ScaleZ}" Grid.Column="1" Grid.Row="2"
+                            PreviewMouseLeftButtonDown="OnScaleVectorBoxPreviewMouse_LMB_Down"
+                            PreviewMouseLeftButtonUp="OnScaleVectorBoxPreviewMouse_LMB_Up"
+                            LostKeyboardFocus="OnScaleVectorBox_LostKeyboardFocus"/>
 
             
         </Grid>

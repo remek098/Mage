@@ -38,11 +38,12 @@ namespace MageEditor.Dictionaries
         private void OnTextBoxRename_LostFocus(object sender, RoutedEventArgs e)
         {
             var textBox = sender as TextBox;
+            if (textBox is not null && !textBox.IsVisible) return;
             var exp = textBox?.GetBindingExpression(TextBox.TextProperty);
             if (exp != null && textBox is not null)
             {
                 exp.UpdateTarget();
-                textBox.MoveFocus(new TraversalRequest(FocusNavigationDirection.Previous));
+                //textBox.MoveFocus(new TraversalRequest(FocusNavigationDirection.Previous));
                 textBox.Visibility = Visibility.Collapsed;
             }
         }

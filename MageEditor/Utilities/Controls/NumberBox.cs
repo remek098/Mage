@@ -108,6 +108,7 @@ namespace MageEditor.Utilities.Controls
             
             // get X position in respect to this Control
             _mouseX_dragStart = e.GetPosition(this).X;
+            Focus();
         }
 
         static NumberBox()
