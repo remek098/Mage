@@ -5,10 +5,26 @@
 
 #if USE_STL_VECTOR
 #include <vector>
+#include <algorithm>
+
+
 namespace mage::utl {
 
 	template<typename T>
 	using vector = std::vector<T>;
+
+	// swap element at index with element at the end.
+	// if there's only 1 element in vector or vector is empty, clear array
+	template<typename T>
+	void erase_unordered(std::vector<T>& v, size_t index) {
+		if ( v.size() > 1 ) {
+			std::iter_swap(v.begin() + index, v.end() - 1);
+			v.pop_back();
+		}
+		else {
+			v.clear();
+		}
+	}
 }
 #endif
 

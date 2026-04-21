@@ -2,16 +2,14 @@
 
 #include "ComponentsCommon.h"
 
-namespace mage::transform {
+namespace mage::script {
 
 	struct InitInfo {
-		f32 position[3]{};
-		f32 rotation[4]{};
-		f32 scale[3]{1.f, 1.f, 1.f};
+		detail::script_creator_fn_ptr script_creator;
 	};
 
 	// NOTE: every entity has transform component and entity keeps track of generations of itself,
 	// managing transform components with usage of these 2 functions below
 	Component		create(const InitInfo& info, game_entity::Entity entity);
-	void			remove(Component comp);
+	void			remove(Component c);
 }

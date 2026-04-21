@@ -1,18 +1,20 @@
 #include "Entity.h"
 #include "Transform.h"
+#include "Script.h"
 
 namespace mage::game_entity {
 
 	// anonymous namespace
 	namespace {
 		utl::vector<transform::Component>	transforms;
+		utl::vector<script::Component>		scripts;
 
 		utl::vector<id::gen_type>	generations;
 		utl::deque<entity_id>		free_ids;
 	} // end anyonymous namespace
 
 
-	Entity create_game_entity(const EntityInfo& info) {
+	Entity create(const EntityInfo& info) {
 		assert(info.tranform); // all game entities must have a transform component
 		if ( !info.tranform ) return Entity{};
 
@@ -22,7 +24,7 @@ namespace mage::game_entity {
 		if ( free_ids.size() > id::min_deleted_elements ) {
 			// pick the first one, check if it's one of those 'dead' entities
 			id = free_ids.front();
-			assert(!is_alive(Entity{ id }));
+			assert(!is_alive(id));
 			// remove it from free_ids, increase it's generation
 			free_ids.pop_front();
 			id = entity_id{ id::new_generation(id) };
@@ -44,31 +46,37 @@ namespace mage::game_entity {
 
 		// create transform component 
 		assert(!transforms[index].is_valid());
-		transforms[index] = transform::create_transform(*info.tranform, new_entity);
+		transforms[index] = transform::create(*info.tranform, new_entity);
 		if ( !transforms[index].is_valid() ) return {};
+
+		// create script component
+		if ( info.script && info.script->script_creator ) {
+			assert(!scripts[index].is_valid());
+			scripts[index] = script::create(*info.script, new_entity);
+			assert(scripts[index].is_valid());
+		}
 
 		return new_entity;
 	}
 	
-	void remove_game_entity(Entity e) {
-		const entity_id id{ e.get_id() };
+	void remove(entity_id id) {
 		const id::id_type index{ id::index(id) };
-		assert(is_alive(e));
+		assert(is_alive(id));
 
-		if ( is_alive(e) ) {
-			transform::remove_transform(transforms[index]);
-			transforms[index] = {};
+		transform::remove(transforms[index]);
+		transforms[index] = {};
 
-			// mark as the id that can be reused later
-			free_ids.push_back(id);
-		}
+		// NOTE:
+		script::remove(scripts[index]);
+		scripts[index] = {};
+
+		// mark as the id that can be reused later
+		free_ids.push_back(id);
 	}
 
-	bool is_alive(Entity e) {
-		assert(e.is_valid());
-		const entity_id id{ e.get_id() };
+	bool is_alive(entity_id id) {
+		assert(id::is_valid(id));
 		const id::id_type index{ id::index(id) };
-
 
 		assert(index < generations.size());
 		assert(generations[index] == id::generation(id));
@@ -77,8 +85,14 @@ namespace mage::game_entity {
 
 
 	transform::Component Entity::transform() const {
-		assert(is_alive(*this));
+		assert(is_alive(_id));
 		const id::id_type index{ id::index(_id) };
 		return transforms[index];
+	}
+
+	script::Component Entity::script() const {
+		assert(is_alive(_id));
+		const id::id_type index{ id::index(_id) };
+		return scripts[index];
 	}
 }

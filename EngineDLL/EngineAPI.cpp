@@ -55,10 +55,10 @@ MAGE_ED_INTERFACE id::id_type CreateGameEntity(GameEntityDesc* p_entity_desc) {
     // for now only 1 component in entity -> transform
     game_entity::EntityInfo entity_info{ &transform_info };
 
-    return game_entity::create_game_entity(entity_info).get_id();
+    return game_entity::create(entity_info).get_id();
 }
 
 MAGE_ED_INTERFACE void RemoveGameEntity(id::id_type id) {
     assert(id::is_valid(id));
-    game_entity::remove_game_entity(entity_from_id(id));
+    game_entity::remove(game_entity::entity_id{ id });
 }
