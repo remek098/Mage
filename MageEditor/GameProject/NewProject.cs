@@ -10,6 +10,8 @@ using System.Runtime.Serialization;
 using MageEditor.Utilities;
 using System.Collections.ObjectModel;
 using MageEditor.Common;
+using Accessibility;
+using System.Windows;
 
 namespace MageEditor.GameProject
 {
@@ -33,6 +35,7 @@ namespace MageEditor.GameProject
         public string TemplateImageFilePath { get; set; }
 
         public string ProjectFilePath { get; set; }
+        public string TemplatePath { get; set; }
     }
 
     class NewProject : ViewModelBase
@@ -176,6 +179,8 @@ namespace MageEditor.GameProject
                 projectXml = string.Format(projectXml, ProjectName, ProjectPath); // maybe instead of ProjectPath we got to use path variable itself -> depends if you want later when reading a file append ProjectName like path variable does
                 var projectPath = Path.GetFullPath(Path.Combine(path, $"{ProjectName}{Project.Extension}"));
                 File.WriteAllText(projectPath, projectXml);
+
+                CreateMSVCSolution(template, path);
                 return path;
             }
             catch (Exception ex)
@@ -184,6 +189,33 @@ namespace MageEditor.GameProject
                 Logger.Log(MessageType.Error, $"Failed to create {ProjectName}.");
                 throw;
             }
+        }
+
+        private void CreateMSVCSolution(ProjectTemplate template, string path)
+        {
+            Debug.Assert(File.Exists(Path.Combine(template.TemplatePath, "MSVCSolution")));
+            Debug.Assert(File.Exists(Path.Combine(template.TemplatePath, "MSVCProject")));
+
+            var engineAPI_path = Path.Combine(MainWindow.MagePath, @"Engine\EngineAPI\");
+            Debug.Assert(Directory.Exists(engineAPI_path));
+
+            // params to fill -> check MSVCProject and MSVCSolution template files inside /MageEditor/ProjectTemplates/EmptyProject/
+            var _0 = ProjectName;
+            var _1 = "{" + Guid.NewGuid().ToString().ToUpper() + "}";
+            var _2 = engineAPI_path; // Mage_InclutePath
+            var _3 = MainWindow.MagePath; // Mage_LibraryPath
+
+            // create and fill in MSVCSolution
+            var solution = File.ReadAllText(Path.Combine(template.TemplatePath, "MSVCSolution"));
+            // ProjectName, GUID for project, GUID for solution
+            solution = string.Format(solution, _0, _1, "{" + Guid.NewGuid().ToString().ToUpper() + "}");
+            File.WriteAllText(Path.GetFullPath(Path.Combine(path, $"{_0}.sln")), solution);
+
+            // create and fill in MSVCProject
+            var project = File.ReadAllText(Path.Combine(template.TemplatePath, "MSVCProject"));
+            // ProjectName, GUID for project, GUID for solution
+            project = string.Format(project, _0, _1, _2, _3);
+            File.WriteAllText(Path.GetFullPath(Path.Combine(path, $@"GameCode\{_0}.vcxproj")), project);
         }
 
         public NewProject()
@@ -212,6 +244,8 @@ namespace MageEditor.GameProject
 
                         if (template.ProjectFile != null)
                             template.ProjectFilePath = Path.GetFullPath(Path.Combine(directory, template.ProjectFile));
+
+                        template.TemplatePath = Path.GetDirectoryName(file) ?? string.Empty;
                     }
                     _projectTemplates.Add(template);
                     

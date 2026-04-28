@@ -39,6 +39,7 @@ namespace mage::game_entity {
 			// adding default transform::component at the end each time we create new "default" entity
 			// NOTE: don't call resize(), so that the number of memory allocations stays as low as possible
 			transforms.emplace_back();
+			scripts.emplace_back();
 		}
 
 		const Entity new_entity{ id };
@@ -63,12 +64,14 @@ namespace mage::game_entity {
 		const id::id_type index{ id::index(id) };
 		assert(is_alive(id));
 
+		if ( scripts[index].is_valid() ) {
+			script::remove(scripts[index]);
+			scripts[index] = {}; // empty component with INVALID_ID
+		}
+
 		transform::remove(transforms[index]);
 		transforms[index] = {};
 
-		// NOTE:
-		script::remove(scripts[index]);
-		scripts[index] = {};
 
 		// mark as the id that can be reused later
 		free_ids.push_back(id);

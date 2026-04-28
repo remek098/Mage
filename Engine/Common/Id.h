@@ -9,7 +9,7 @@ namespace mage::id {
 	using id_type = u32;
 
 
-	namespace internal {
+	namespace detail {
 		// index part gives us the index of the entity in lookup array.
 		// generation part is used to distinguish entities created at the same index slot
 
@@ -27,12 +27,12 @@ namespace mage::id {
 	constexpr u32 min_deleted_elements{ 1024 };
 
 
-	using gen_type = std::conditional_t<internal::generation_bits <= 16, 
-		std::conditional_t<internal::generation_bits <= 8, u8, u16>, u32>;
+	using gen_type = std::conditional_t<detail::generation_bits <= 16, 
+		std::conditional_t<detail::generation_bits <= 8, u8, u16>, u32>;
 	
 	
 	// some static asserts to make sure we don't f it up
-	static_assert(sizeof(gen_type) * 8 >= internal::generation_bits);
+	static_assert(sizeof(gen_type) * 8 >= detail::generation_bits);
 	static_assert((sizeof(id_type) - sizeof(gen_type)) > 0);
 
 
@@ -42,13 +42,13 @@ namespace mage::id {
 	}
 
 	constexpr id_type index(id_type id) {
-		id_type index{ id & internal::index_mask };
-		assert(index != internal::index_mask);
+		id_type index{ id & detail::index_mask };
+		assert(index != detail::index_mask);
 		return index;
 	}
 
 	constexpr id_type generation(id_type id) {
-		return (id >> internal::index_bits) & internal::generation_mask;
+		return (id >> detail::index_bits) & detail::generation_mask;
 	}
 
 	constexpr id_type new_generation(id_type id) {
@@ -61,14 +61,14 @@ namespace mage::id {
 		// assert(generation < std::numeric_limits<gen_type>::max());
 		
 		// calc this value on the fly to make sure bits stay like they should when we manipulate generation_bits
-		assert(generation < (((u64)1 << internal::generation_bits) - 1));
-		return index(id) | (generation << internal::index_bits);
+		assert(generation < (((u64)1 << detail::generation_bits) - 1));
+		return index(id) | (generation << detail::index_bits);
 	}
 
 
 
 #if _DEBUG
-	namespace internal
+	namespace detail
 	{
 		struct IdBase
 		{
@@ -85,7 +85,7 @@ namespace mage::id {
 
 // one constructor takes value, other initializes with invalid index.
 #define DEFINE_TYPED_ID(name)												\
-	struct name final : id::internal::IdBase								\
+	struct name final : id::detail::IdBase								\
 	{																		\
 		constexpr explicit name(id::id_type id)								\
 			: IdBase{id} {}													\

@@ -5,6 +5,7 @@
 namespace mage::script {
 
 	struct InitInfo {
+		// expects game_entity::Entity as param
 		detail::script_creator_fn_ptr script_creator;
 	};
 

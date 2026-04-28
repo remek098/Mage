@@ -14,12 +14,12 @@ namespace mage::script {
         utl::vector<script_id>          free_ids;
         
         
-        using script_registery = std::unordered_map<size_t, detail::script_creator_fn_ptr>;
+        using script_registry = std::unordered_map<size_t, detail::script_creator_fn_ptr>;
         
-        script_registery& registery() {
+        script_registry& registery() {
             // NOTE: putting this static variable in function to avoid shenanigans with 
             // initialization order of static data.
-            static script_registery reg;
+            static script_registry reg;
             return reg;
         }
 
@@ -42,7 +42,7 @@ namespace mage::script {
 
     namespace detail {
         u8 register_script(size_t tag, script_creator_fn_ptr func) {
-            bool result = registery().insert(script_registery::value_type{ tag, func }).second;
+            bool result = registery().insert(script_registry::value_type{ tag, func }).second;
             assert(result);
             return result;
         }
@@ -69,10 +69,10 @@ namespace mage::script {
         }
 
         assert(id::is_valid(id));
-        script_entities.emplace_back(info.script_creator(entity));
-        assert(script_entities.back()->get_id() == entity.get_id());    // should always be true
         // get position of where new ScriptEntity was added, ofc it is end of script_entities array
         const id::id_type index{ (id::id_type)script_entities.size() };
+        script_entities.emplace_back(info.script_creator(entity));
+        assert(script_entities.back()->get_id() == entity.get_id());    // should always be true
         id_mapping[id::index(id)] = index;
         return Component{ id };
     }
