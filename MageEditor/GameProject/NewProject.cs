@@ -176,7 +176,7 @@ namespace MageEditor.GameProject
 
                 // .mage file in template has {0} and {1} string formats that we utilize there
                 var projectXml = File.ReadAllText(template.ProjectFilePath); 
-                projectXml = string.Format(projectXml, ProjectName, ProjectPath); // maybe instead of ProjectPath we got to use path variable itself -> depends if you want later when reading a file append ProjectName like path variable does
+                projectXml = string.Format(projectXml, ProjectName, path); // NOTE: maybe instead of ProjectPath we got to use path variable itself -> depends if you want later when reading a file append ProjectName like path variable does
                 var projectPath = Path.GetFullPath(Path.Combine(path, $"{ProjectName}{Project.Extension}"));
                 File.WriteAllText(projectPath, projectXml);
 
@@ -236,16 +236,17 @@ namespace MageEditor.GameProject
 
                     if (template != null)
                     {
-                        template.IconFilePath = Path.GetFullPath(Path.Combine(directory, "Icon.png"));
+                        template.TemplatePath = Path.GetDirectoryName(file) ?? string.Empty;
+                        template.IconFilePath = Path.GetFullPath(Path.Combine(template.TemplatePath, "Icon.png"));
                         template.Icon = File.ReadAllBytes(template.IconFilePath);
 
-                        template.TemplateImageFilePath = Path.GetFullPath(Path.Combine(directory, "TemplateImage.png"));
+                        template.TemplateImageFilePath = Path.GetFullPath(Path.Combine(template.TemplatePath, "TemplateImage.png"));
                         template.TemplateImage = File.ReadAllBytes(template.TemplateImageFilePath);
 
                         if (template.ProjectFile != null)
-                            template.ProjectFilePath = Path.GetFullPath(Path.Combine(directory, template.ProjectFile));
+                            template.ProjectFilePath = Path.GetFullPath(Path.Combine(template.TemplatePath, template.ProjectFile)); 
+                        //template.ProjectFilePath = Path.GetFullPath(Path.Combine(directory, template.ProjectFile));
 
-                        template.TemplatePath = Path.GetDirectoryName(file) ?? string.Empty;
                     }
                     _projectTemplates.Add(template);
                     

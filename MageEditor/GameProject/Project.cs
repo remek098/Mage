@@ -11,6 +11,7 @@ using System.IO;
 using MageEditor.Utilities;
 using System.Windows.Input;
 using MageEditor.Common;
+using MageEditor.GameDev;
 
 namespace MageEditor.GameProject
 {
@@ -25,8 +26,8 @@ namespace MageEditor.GameProject
         [DataMember]
         public string Path { get; private set; }
 
-        public string FullPath => $@"{Path}{Name}\{Name}{Extension}";
-
+        public string FullPath => $@"{Path}{Name}{Extension}";
+        public string Solution => $@"{Path}{Name}.sln";
 
         [DataMember(Name = "Scenes")]
         private ObservableCollection<Scene> _scenes = new ObservableCollection<Scene>();
@@ -82,6 +83,7 @@ namespace MageEditor.GameProject
 
         public void Unload()
         {
+            VisualStudio.CloseVisualStudio();
             UndoRedo.Reset();
         }
 

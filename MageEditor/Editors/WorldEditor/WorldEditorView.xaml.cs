@@ -1,4 +1,5 @@
-﻿using MageEditor.GameProject;
+﻿using MageEditor.GameDev;
+using MageEditor.GameProject;
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
@@ -33,6 +34,11 @@ namespace MageEditor.Editors
             Loaded -= OnWorldEditorViewLoaded;
             Focus();
             //((INotifyCollectionChanged)Project.UndoRedo.UndoList).CollectionChanged += (s, e) => Focus();
+        }
+
+        private void OnNewScript_Button_Click(object sender, RoutedEventArgs e)
+        {
+            new NewScriptDialog().ShowDialog(); // since we don't need to cancel it ourselves or wait for result of it
         }
     }
 }

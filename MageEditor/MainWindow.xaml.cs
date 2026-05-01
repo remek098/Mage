@@ -19,7 +19,7 @@ namespace MageEditor
     public partial class MainWindow : Window
     {
         // NOTE: to be changed, Engine will be installed where user chooses ideally.
-        public static string MagePath { get; private set; } = @"F:\dev\Mage\Mage_git\Mage";
+        public static string MagePath { get; private set; } // = @"F:\dev\Mage\Mage_git\Mage";
 
         public MainWindow()
         {
