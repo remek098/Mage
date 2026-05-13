@@ -634,7 +634,7 @@
                             <Setter Property="MinWidth" Value="50"/>
                             <Setter Property="ToolTipService.InitialShowDelay" Value="3000"/>
                             <Setter Property="ToolTipService.BetweenShowDelay" Value="1000"/>
-                            <Setter Property="SensitivityMultiplier" 
+                            <Setter Property="SensitivityMultiplier"
                                     Value="{Binding SensitivityMultiplier, RelativeSource={RelativeSource TemplatedParent}}"/>
                         </Style>
                     </ControlTemplate.Resources>

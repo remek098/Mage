@@ -8,11 +8,16 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Runtime.InteropServices;
 using System.IO;
+using MageEditor.GameProject;
 
 namespace MageEditor.GameDev
 {
     static class VisualStudio
     {
+        public static bool BuildSucceded { get; private set; } = true;
+        public static bool BuildDone { get; private set; } = true;
+
+
         // https://learn.microsoft.com/en-us/dotnet/api/envdte80?view=visualstudiosdk-2022
         // https://learn.microsoft.com/en-us/dotnet/api/envdte80.dte2?view=visualstudiosdk-2022
         private static EnvDTE80.DTE2? _vsInscance = null;
@@ -145,13 +150,26 @@ namespace MageEditor.GameDev
 
 
                     // open added cpp file(s)
+                    bool opened_any_files = false;
                     var cpp_files = files.FirstOrDefault(x => Path.GetExtension(x) == ".cpp");
-                    if(string.IsNullOrEmpty(cpp_files))
+                    var h_files = files.FirstOrDefault(x => Path.GetExtension(x) == ".h");
+                    if(!string.IsNullOrEmpty(cpp_files))
                     {
                         // NOTE: for MageEditor > Dependencies > COM > Interop.EnvDTE you gotta set in properties "Embed Interop Types" to "No"
                         // otherwise if it's left as Yes, you gotta use "{7651A703-06E5-11D1-8EBD-00A0C90F26EA}" // vsViewKindTextView
                         _vsInscance.ItemOperations.OpenFile(cpp_files, EnvDTE.Constants.vsViewKindTextView).Visible = true;
+                        _vsInscance.ItemOperations.OpenFile(h_files, EnvDTE.Constants.vsViewKindTextView).Visible = true;
+                        opened_any_files = true;
                     }
+                    if (opened_any_files)
+                    {
+                        foreach (var file in files) Logger.Log(MessageType.Info, $"Opened file: {file}");
+                    }
+                    else
+                    {
+                        foreach (var file in files) Logger.Log(MessageType.Error, $"Could not open file: {file}");
+                    }
+
                     _vsInscance.MainWindow.Activate();
                     _vsInscance.MainWindow.Visible = true;
 
@@ -166,5 +184,81 @@ namespace MageEditor.GameDev
 
             return true;
         }
+
+
+        private static void OnBuildProjectDone(string project, string projectConfig, string platform, string solutionConfig, bool success)
+        {
+            if (BuildDone) return;
+
+            if (success) Logger.Log(MessageType.Info, $"Building {projectConfig} configuration succeded");
+            else Logger.Log(MessageType.Info, $"Building {projectConfig} configuration failed");
+
+            BuildDone = true;
+            BuildSucceded = success;
+        }
+
+        private static void OnBuildProjectBegin(string project, string projectConfig, string platform, string solutionConfig)
+        {
+            Logger.Log(MessageType.Info, $"Building {project}, {projectConfig}, {platform}, {solutionConfig}");
+        }
+
+        public static bool IsDebugging()
+        {
+            bool result = false;
+            bool try_again = true;
+            for(int i = 0; i < 3 && try_again; ++i)
+            {
+                try
+                {
+                    // debugger is either debugging current program or running it already if result is true
+                    result = _vsInscance != null && 
+                        (_vsInscance?.Debugger.CurrentProgram != null || _vsInscance?.Debugger.CurrentMode == EnvDTE.dbgDebugMode.dbgRunMode);
+                }
+                catch(Exception ex)
+                {
+                    Debug.WriteLine(ex.Message);
+                    System.Threading.Thread.Sleep(1000);
+                }
+            }
+            return result;
+        }
+
+        public static void BuildSolution(Project project, string configName, bool showVSWindow = true)
+        {
+            if(IsDebugging())
+            {
+                Logger.Log(MessageType.Error, "Visual Studio is currently running the process.");
+                return;
+            }
+
+            OpenVisualStudio(project.Solution);
+            BuildDone = BuildSucceded = false;
+
+            for (int i = 0; i < 3 && !BuildDone; ++i)
+            {
+                try
+                {
+                    if (_vsInscance != null && !_vsInscance.Solution.IsOpen) _vsInscance.Solution.Open(project.Solution);
+                    if(_vsInscance != null)
+                    {
+                        _vsInscance.MainWindow.Visible = showVSWindow;
+
+                        _vsInscance.Events.BuildEvents.OnBuildProjConfigBegin += OnBuildProjectBegin;
+                        _vsInscance.Events.BuildEvents.OnBuildProjConfigDone += OnBuildProjectDone;
+                    }
+
+
+                    _vsInscance?.Solution.SolutionBuild.SolutionConfigurations.Item(configName).Activate();
+                    _vsInscance?.ExecuteCommand("Build.BuildSolution"); // issue Visual Studio command
+                }
+                catch(Exception ex)
+                {
+                    Debug.WriteLine(ex.Message);
+                    Debug.WriteLine($"Attempt {i}: failed to build {project.Name}");
+                    System.Threading.Thread.Sleep(1000);
+                }
+            }
+        }
+
     }
 }

@@ -12,7 +12,7 @@ namespace MageEditor.Utilities.Controls
     // telling WPF to expect these 2
     [TemplatePart(Name ="PART_textBlock",  Type = typeof(TextBlock))]
     [TemplatePart(Name = "PART_textBox", Type = typeof(TextBox))]
-    class NumberBox : Control
+    public class NumberBox : Control
     {
         // storing parsed from string Value
         private double _originalValue;
@@ -23,12 +23,12 @@ namespace MageEditor.Utilities.Controls
 
         public double SensitivityMultiplier
         {
-            get => (double)GetValue(SensitivityProperty);
-            set => SetValue(SensitivityProperty, value);
+            get => (double)GetValue(SensitivityMultiplierProperty);
+            set => SetValue(SensitivityMultiplierProperty, value);
         }
 
         // e.g. Text property in TextBox is a DependencyProperty
-        public static readonly DependencyProperty SensitivityProperty = DependencyProperty.Register(
+        public static readonly DependencyProperty SensitivityMultiplierProperty = DependencyProperty.Register(
             nameof(SensitivityMultiplier),
             typeof(double),
             typeof(NumberBox),

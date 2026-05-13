@@ -15,7 +15,7 @@ namespace MageEditor.Utilities.Controls
         Vector4,
     }
 
-    class VectorBox : Control
+    public class VectorBox : Control
     {
         public VectorType VectorType
         {
@@ -48,12 +48,12 @@ namespace MageEditor.Utilities.Controls
 
         public double SensitivityMultiplier
         {
-            get => (double)GetValue(SensitivityProperty);
-            set => SetValue(SensitivityProperty, value);
+            get => (double)GetValue(SensitivityMultiplierProperty);
+            set => SetValue(SensitivityMultiplierProperty, value);
         }
 
         // e.g. Text property in TextBox is a DependencyProperty
-        public static readonly DependencyProperty SensitivityProperty = DependencyProperty.Register(
+        public static readonly DependencyProperty SensitivityMultiplierProperty = DependencyProperty.Register(
             nameof(SensitivityMultiplier),
             typeof(double),
             typeof(VectorBox),

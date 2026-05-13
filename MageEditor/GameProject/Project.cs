@@ -15,6 +15,15 @@ using MageEditor.GameDev;
 
 namespace MageEditor.GameProject
 {
+    enum BuildConfiguration
+    {
+        Debug,
+        DebugEditor,
+        Release,
+        ReleaseEditor,
+    }
+
+
     [DataContract(Name = "Game")]
     class Project : ViewModelBase
     {
@@ -28,6 +37,28 @@ namespace MageEditor.GameProject
 
         public string FullPath => $@"{Path}{Name}{Extension}";
         public string Solution => $@"{Path}{Name}.sln";
+
+        private static readonly string[] _buildConfigurationNames = new string[] { "Debug", "DebugEditor", "Release", "ReleaseEditor" };
+
+        public int _buildConfig;
+
+        [DataMember]
+        public int BuildConfig
+        {
+            get => _buildConfig;
+            set
+            {
+                if(_buildConfig != value)
+                {
+                    _buildConfig = value;
+                    OnPropertyChanged(nameof(BuildConfig));
+                }
+            }
+        }
+
+        // for standalone application
+        public BuildConfiguration StandaloneBuildConfig => BuildConfig == 0 ? BuildConfiguration.Debug : BuildConfiguration.Release;
+        public BuildConfiguration DllBuildConfig => BuildConfig == 0 ? BuildConfiguration.DebugEditor : BuildConfiguration.ReleaseEditor;
 
         [DataMember(Name = "Scenes")]
         private ObservableCollection<Scene> _scenes = new ObservableCollection<Scene>();
@@ -63,6 +94,15 @@ namespace MageEditor.GameProject
 
         public ICommand SaveCommand { get; private set; }
 
+        public ICommand BuildCommand { get; private set; }
+
+        /*
+        returns BuildConfiguration enum type that we have chosen in Editor with WorldViewEditor's ComboBox x:Name="runConfig"
+        if used with StandaloneBuildConfig property for standalone app
+        and DllBuildConfig property for Editor's game dll
+        */
+        private static string GetConfigurationName(BuildConfiguration configuration) => _buildConfigurationNames[(int)configuration];
+
         private void AddScene(string sceneName)
         {
             Debug.Assert(!string.IsNullOrEmpty(sceneName.Trim()));
@@ -94,6 +134,32 @@ namespace MageEditor.GameProject
             Logger.Log(MessageType.Info, $"Project saved to {project.FullPath}");
         }
 
+
+        private void BuildGameCodeDll(bool showWindow = true)
+        {
+            try
+            {
+                UnloadGameCodeDll();
+                VisualStudio.BuildSolution(this, GetConfigurationName(DllBuildConfig), showWindow);
+                if (VisualStudio.BuildSucceded)
+                {
+                    LoadGameCodeDll();
+                }
+            }
+            catch(Exception ex)
+            {
+                Debug.WriteLine(ex.Message);
+                throw;
+            }
+        }
+
+        private void UnloadGameCodeDll()
+        {
+        }
+
+        private void LoadGameCodeDll()
+        {
+        }
 
         [OnDeserialized]
         private void OnDeserialized(StreamingContext context)
@@ -139,9 +205,12 @@ namespace MageEditor.GameProject
             },
             x => !x.IsActive);
 
-            UndoCommand = new RelayCommand<object>(x => UndoRedo.Undo());
-            RedoCommand = new RelayCommand<object>(x => UndoRedo.Redo());
+            UndoCommand = new RelayCommand<object>(x => UndoRedo.Undo(), x => UndoRedo.UndoList.Any());
+            RedoCommand = new RelayCommand<object>(x => UndoRedo.Redo(), x => UndoRedo.RedoList.Any());
             SaveCommand = new RelayCommand<object>(x => Save(this));
+
+            // if visual studio is already running this command, we cannot use this command until it's done
+            BuildCommand = new RelayCommand<bool>(x => BuildGameCodeDll(x), x => !VisualStudio.IsDebugging() &&  VisualStudio.BuildDone);
 
         }
 
