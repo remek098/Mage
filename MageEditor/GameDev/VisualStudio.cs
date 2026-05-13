@@ -241,7 +241,8 @@ namespace MageEditor.GameDev
                     if (_vsInscance != null && !_vsInscance.Solution.IsOpen) _vsInscance.Solution.Open(project.Solution);
                     if(_vsInscance != null)
                     {
-                        _vsInscance.MainWindow.Visible = showVSWindow;
+                        // NOTE: if() avoids closing visual studio window when we press a keyboard shortcut for building a project in editor.
+                        if (_vsInscance.MainWindow.Visible == false) _vsInscance.MainWindow.Visible = showVSWindow;
 
                         _vsInscance.Events.BuildEvents.OnBuildProjConfigBegin += OnBuildProjectBegin;
                         _vsInscance.Events.BuildEvents.OnBuildProjConfigDone += OnBuildProjectDone;
