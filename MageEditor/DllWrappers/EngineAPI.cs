@@ -31,36 +31,45 @@ namespace MageEditor.DllWrappers
 {
     static class EngineAPI
     {
-        private const string _dllName = "EngineDLL.dll";
+        private const string _engineDll = "EngineDLL.dll";
 
-        [DllImport(_dllName)]
-        private static extern int CreateGameEntity(GameEntityDescriptor desc);
+        [DllImport(_engineDll, CharSet = CharSet.Ansi)]
+        public static extern int LoadGameCodeDll(string dllPath);
 
-        // this function will convert editors GameEntity into GameEntityDescriptor which will be matching engine's side of things.
-        public static int CreateGameEntity(GameEntity entity)
+        [DllImport(_engineDll)]
+        public static extern int UnloadGameCodeDll();
+
+        internal static class EntityAPI
         {
-            GameEntityDescriptor desc = new GameEntityDescriptor();
+            [DllImport(_engineDll)]
+            private static extern int CreateGameEntity(GameEntityDescriptor desc);
 
-            // transform component
+            // this function will convert editors GameEntity into GameEntityDescriptor which will be matching engine's side of things.
+            public static int CreateGameEntity(GameEntity entity)
             {
-                var component = entity.GetComponent<Transform>();
-                //if(component is not null)
-                //{
-                //}
-                desc.Transform.Position = component.Position;
-                desc.Transform.Rotation = component.Rotation;
-                desc.Transform.Scale = component.Scale;
+                GameEntityDescriptor desc = new GameEntityDescriptor();
+
+                // transform component
+                {
+                    var component = entity.GetComponent<Transform>();
+                    //if(component is not null)
+                    //{
+                    //}
+                    desc.Transform.Position = component.Position;
+                    desc.Transform.Rotation = component.Rotation;
+                    desc.Transform.Scale = component.Scale;
+                }
+
+                return CreateGameEntity(desc);
             }
 
-            return CreateGameEntity(desc);
-        }
 
-
-        [DllImport(_dllName)]
-        private static extern void RemoveGameEntity(int id);
-        public static void RemoveGameEntity(GameEntity entity)
-        {
-            RemoveGameEntity(entity.EntityID);
+            [DllImport(_engineDll)]
+            private static extern void RemoveGameEntity(int id);
+            public static void RemoveGameEntity(GameEntity entity)
+            {
+                RemoveGameEntity(entity.EntityID);
+            }
         }
     }
 }

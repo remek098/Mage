@@ -47,13 +47,13 @@ namespace MageEditor.Components
                     if (_isActive)
                     {
                         // load entity to engine
-                        EntityID = EngineAPI.CreateGameEntity(this);
+                        EntityID = EngineAPI.EntityAPI.CreateGameEntity(this);
                         Debug.Assert(ID.IsValid(_entityID));
                     }
                     else if(ID.IsValid(EntityID))
                     {
                         // remove entity on engine side
-                        EngineAPI.RemoveGameEntity(this);
+                        EngineAPI.EntityAPI.RemoveGameEntity(this);
                         EntityID = ID.INVALID_ID;
 
                     }

@@ -191,7 +191,7 @@ namespace MageEditor.GameDev
             if (BuildDone) return;
 
             if (success) Logger.Log(MessageType.Info, $"Building {projectConfig} configuration succeded");
-            else Logger.Log(MessageType.Info, $"Building {projectConfig} configuration failed");
+            else Logger.Log(MessageType.Error, $"Building {projectConfig} configuration failed");
 
             BuildDone = true;
             BuildSucceded = success;
@@ -247,6 +247,19 @@ namespace MageEditor.GameDev
                         _vsInscance.Events.BuildEvents.OnBuildProjConfigDone += OnBuildProjectDone;
                     }
 
+
+                    // try to delete all pdb files when we build a solution;
+                    // NOTE: game code dll depends on pdb file it's associated with
+                    // just kinda trying to keep output directory clean (to not have hundreds of pdb files for no reason)
+                    // NOTE: works only because we rebuild a new dll anyway.
+                    try
+                    {
+                        foreach(var pdbFile in Directory.GetFiles(Path.Combine($"{project.Path}", $@"x64\{configName}"), "*pdb"))
+                        {
+                            File.Delete(pdbFile);
+                        }
+                    }
+                    catch(Exception ex) { Debug.WriteLine(ex.Message); }
 
                     _vsInscance?.Solution.SolutionBuild.SolutionConfigurations.Item(configName).Activate();
                     _vsInscance?.ExecuteCommand("Build.BuildSolution"); // issue Visual Studio command

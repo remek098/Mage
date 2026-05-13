@@ -18,8 +18,9 @@
     
     <UserControl.InputBindings>
         <KeyBinding Command="{Binding UndoCommand}" Key="Z" Modifiers="Ctrl"/>
-        <KeyBinding Command="{Binding RedoCommand}" Key="Y" Modifiers="Ctrl"/>
+        <KeyBinding Command="{Binding RedoCommand}" Key="Z" Modifiers="Ctrl+Shift"/>
         <KeyBinding Command="{Binding SaveCommand}" Key="S" Modifiers="Ctrl"/>
+        <KeyBinding Command="{Binding BuildCommand}" Key="B" Modifiers="Ctrl+Shift"/>
     </UserControl.InputBindings>
     <Grid>
         <Grid.RowDefinitions>
@@ -29,7 +30,8 @@
         <StackPanel Orientation="Horizontal">
             <Button Content="Undo" Command="{Binding UndoCommand}"/>
             <Button Content="Redo" Command="{Binding RedoCommand}" Margin="2, 0"/>
-            <Button Content="New Script" Click="OnNewScript_Button_Click" Margin="5,0"/>
+            <Button Content="New Script" Click="OnNewScript_Button_Click" Margin="5,0"
+                    IsEnabled="{Binding Path=IsEnabled, ElementName=buildButton}"/>
             <Button x:Name="buildButton" Content="Build" Margin="5,0" 
                     Command="{Binding BuildCommand}"
                     CommandParameter="{StaticResource True}"/>

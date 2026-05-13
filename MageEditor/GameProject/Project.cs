@@ -12,6 +12,7 @@ using MageEditor.Utilities;
 using System.Windows.Input;
 using MageEditor.Common;
 using MageEditor.GameDev;
+using MageEditor.DllWrappers;
 
 namespace MageEditor.GameProject
 {
@@ -96,6 +97,59 @@ namespace MageEditor.GameProject
 
         public ICommand BuildCommand { get; private set; }
 
+        private void SetCommands()
+        {
+            AddSceneCommand = new RelayCommand<object>(x =>
+            {
+                AddScene($"New Scene {_scenes?.Count}");
+                var newScene = _scenes?.Last();
+                var sceneIndex = _scenes?.Count - 1;
+
+
+                if (newScene != null && sceneIndex.HasValue)
+                {
+                    UndoRedo.Add(new UndoRedoAction(
+                        () => RemoveScene(newScene),
+                        () => _scenes?.Insert(sceneIndex.Value, newScene),
+                        $"Add {newScene?.Name}"
+                    ));
+                }
+
+            });
+
+            RemoveSceneCommand = new RelayCommand<Scene>(x =>
+            {
+                var sceneIndex = _scenes?.IndexOf(x);
+                RemoveScene(x);
+
+                if (sceneIndex.HasValue)
+                    UndoRedo.Add(new UndoRedoAction(
+                        () => _scenes?.Insert(sceneIndex.Value, x),
+                        () => RemoveScene(x),
+                        $"Remove {x.Name}"
+                    ));
+
+            },
+            x => !x.IsActive);
+
+            UndoCommand = new RelayCommand<object>(x => UndoRedo.Undo(), x => UndoRedo.UndoList.Any());
+            RedoCommand = new RelayCommand<object>(x => UndoRedo.Redo(), x => UndoRedo.RedoList.Any());
+            SaveCommand = new RelayCommand<object>(x => Save(this));
+
+            // if visual studio is already running this command, we cannot use this command until it's done
+            BuildCommand = new RelayCommand<bool>(async x => await BuildGameCodeDll(x), x => !VisualStudio.IsDebugging() && VisualStudio.BuildDone);
+
+            // NOTE: Have to do this, because initially we await in OnDeserialized() -> when launching editor.
+            // this will inform UI that we got commands initialized,
+            // those will be bound to buttons, etc. in editor
+            OnPropertyChanged(nameof(AddSceneCommand));
+            OnPropertyChanged(nameof(RemoveSceneCommand));
+            OnPropertyChanged(nameof(UndoCommand));
+            OnPropertyChanged(nameof(RedoCommand));
+            OnPropertyChanged(nameof(SaveCommand));
+            OnPropertyChanged(nameof(BuildCommand));
+        }
+
         /*
         returns BuildConfiguration enum type that we have chosen in Editor with WorldViewEditor's ComboBox x:Name="runConfig"
         if used with StandaloneBuildConfig property for standalone app
@@ -135,12 +189,12 @@ namespace MageEditor.GameProject
         }
 
 
-        private void BuildGameCodeDll(bool showWindow = true)
+        private async Task BuildGameCodeDll(bool showWindow = true)
         {
             try
             {
                 UnloadGameCodeDll();
-                VisualStudio.BuildSolution(this, GetConfigurationName(DllBuildConfig), showWindow);
+                await Task.Run(() => VisualStudio.BuildSolution(this, GetConfigurationName(DllBuildConfig), showWindow));
                 if (VisualStudio.BuildSucceded)
                 {
                     LoadGameCodeDll();
@@ -152,17 +206,34 @@ namespace MageEditor.GameProject
                 throw;
             }
         }
+        private void LoadGameCodeDll()
+        {
+            var configName = GetConfigurationName(DllBuildConfig);
+            var dll = $@"{Path}x64\{configName}\{Name}.dll";
+
+            if(File.Exists(dll) && EngineAPI.LoadGameCodeDll(dll) != 0)
+            {
+                Logger.Log(MessageType.Info, "Game code DLL loaded successfully.");
+            }
+            else
+            {
+                // just because if dll is already loaded and we haven't requested rebuild, in memory game_code_dll (EngineAPI\EngineAPI.cpp)
+                // exists and LoadGameCodeDll that we dll import, will return FALSE (which is 0)
+                Logger.Log(MessageType.Warning, "Failed to load game code DLL file. Try to build the project first.");
+            }
+        }
 
         private void UnloadGameCodeDll()
         {
+            if(EngineAPI.UnloadGameCodeDll() != 0)
+            {
+                Logger.Log(MessageType.Info, "Game code DLL unloaded.");
+            }
         }
 
-        private void LoadGameCodeDll()
-        {
-        }
 
         [OnDeserialized]
-        private void OnDeserialized(StreamingContext context)
+        private async void OnDeserialized(StreamingContext context)
         {
             //Initialize();
             if (_scenes != null)
@@ -172,46 +243,11 @@ namespace MageEditor.GameProject
             }
             ActiveScene = Scenes.FirstOrDefault(x => x.IsActive);
 
-            AddSceneCommand = new RelayCommand<object>(x =>
-            {
-                AddScene($"New Scene {_scenes?.Count}");
-                var newScene = _scenes?.Last();
-                var sceneIndex = _scenes?.Count - 1;
+            // build game's code dll, but don't show a Visual Studio window.
+            await BuildGameCodeDll(false);
 
-
-                if (newScene != null && sceneIndex.HasValue)
-                {
-                    UndoRedo.Add(new UndoRedoAction(
-                        () => RemoveScene(newScene),
-                        () => _scenes?.Insert(sceneIndex.Value, newScene),
-                        $"Add {newScene?.Name}"
-                    ));
-                }
-
-            });
-
-            RemoveSceneCommand = new RelayCommand<Scene>(x =>
-            {
-                var sceneIndex = _scenes?.IndexOf(x);
-                RemoveScene(x);
-
-                if(sceneIndex.HasValue)
-                    UndoRedo.Add(new UndoRedoAction(
-                        () => _scenes?.Insert(sceneIndex.Value, x),
-                        () => RemoveScene(x),
-                        $"Remove {x.Name}"
-                    ));
-
-            },
-            x => !x.IsActive);
-
-            UndoCommand = new RelayCommand<object>(x => UndoRedo.Undo(), x => UndoRedo.UndoList.Any());
-            RedoCommand = new RelayCommand<object>(x => UndoRedo.Redo(), x => UndoRedo.RedoList.Any());
-            SaveCommand = new RelayCommand<object>(x => Save(this));
-
-            // if visual studio is already running this command, we cannot use this command until it's done
-            BuildCommand = new RelayCommand<bool>(x => BuildGameCodeDll(x), x => !VisualStudio.IsDebugging() &&  VisualStudio.BuildDone);
-
+            // because we await we gotta do it this way
+            SetCommands();
         }
 
         public Project(string name, string path)

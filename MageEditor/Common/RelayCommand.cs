@@ -21,9 +21,16 @@ namespace MageEditor.Common
 
         public bool CanExecute(object? parameter)
         {
+            //return parameter is T value
+            //    ? _canExecute?.Invoke(value) ?? true
+            //    : true;
+
+            if (_canExecute == null)
+                return true;
+
             return parameter is T value
-                ? _canExecute?.Invoke(value) ?? true
-                : true;
+                ? _canExecute(value)
+                : _canExecute(default!);
         }
 
         public void Execute(object? parameter)

@@ -70,7 +70,7 @@ namespace {1} {{
             return project_name;
         }
 
-        bool Validate()
+        private bool Validate()
         {
             bool isValid = false;
             var name = scriptName.Text.Trim();
