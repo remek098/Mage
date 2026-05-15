@@ -13,9 +13,9 @@ namespace {
         f32 rotation[3];
         f32 scale[3];
 
-        transform::InitInfo to_init_info() {
+        transform::init_info to_init_info() {
             using namespace DirectX;
-            transform::InitInfo info{};
+            transform::init_info info{};
             memcpy(info.position, position, sizeof(f32) * _countof(position));
             memcpy(info.scale, scale, sizeof(f32) * _countof(scale));
 
@@ -36,8 +36,8 @@ namespace {
     };
 
 
-    game_entity::Entity entity_from_id(id::id_type id) {
-        return game_entity::Entity{ game_entity::entity_id{id} };
+    game_entity::entity entity_from_id(id::id_type id) {
+        return game_entity::entity{ game_entity::entity_id{id} };
     }
 }
 
@@ -46,10 +46,10 @@ MAGE_ED_INTERFACE id::id_type CreateGameEntity(GameEntityDesc* p_entity_desc) {
     assert(p_entity_desc);
     GameEntityDesc& desc = *p_entity_desc;
 
-    transform::InitInfo transform_info{ desc.transform.to_init_info() };
+    transform::init_info transform_info{ desc.transform.to_init_info() };
 
     // for now only 1 component in entity -> transform
-    game_entity::EntityInfo entity_info{ &transform_info };
+    game_entity::entity_info entity_info{ &transform_info };
 
     return game_entity::create(entity_info).get_id();
 }

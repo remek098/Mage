@@ -42,10 +42,10 @@ namespace {1} {{
 
 namespace {1} {{
     
-    class {0} : public mage::script::ScriptEntity {{
+    class {0} : public mage::script::script_entity {{
     public:
-        constexpr explicit {0}(mage::game_entity::Entity entity)
-            : mage::script::ScriptEntity(entity) {{}}
+        constexpr explicit {0}(mage::game_entity::entity entity)
+            : mage::script::script_entity(entity) {{}}
 
         void begin_play() override;
         void update(float dt) override;

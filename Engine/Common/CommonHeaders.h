@@ -13,6 +13,8 @@
 
 #if defined(_WIN64)
 #include <DirectXMath.h>
+
+#include <atlsafe.h>
 #endif
 
 // common headers

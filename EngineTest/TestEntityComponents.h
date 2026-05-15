@@ -35,12 +35,12 @@ private:
         u32 count = rand() % 20; // random number between 0-20
         if ( _entities.empty() ) count = 1000;
 
-        transform::InitInfo transform_info{};
-        game_entity::EntityInfo entity_info{ &transform_info };
+        transform::init_info transform_info{};
+        game_entity::entity_info entity_info{ &transform_info };
 
         while ( count > 0 ) {
             ++_added;
-            game_entity::Entity entity = game_entity::create(entity_info);
+            game_entity::entity entity = game_entity::create(entity_info);
             assert(entity.is_valid() && id::is_valid(entity.get_id()));
             _entities.push_back(entity);
             assert(game_entity::is_alive(entity.get_id()));
@@ -55,7 +55,7 @@ private:
         while ( count > 0 ) {
             // [0, num_entities]
             const u32 index = (u32)rand() % (u32)_entities.size();
-            game_entity::Entity entity = _entities[index];
+            game_entity::entity entity = _entities[index];
             assert(entity.is_valid() && id::is_valid(entity.get_id()));
             if ( entity.is_valid() ) {
                 game_entity::remove(entity.get_id());
@@ -74,7 +74,7 @@ private:
     }
 
 private:
-    utl::vector<game_entity::Entity> _entities;
+    utl::vector<game_entity::entity> _entities;
 
     // just so that test remembers how many entities were added, removed
     u32 _added           = 0;

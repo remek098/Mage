@@ -7,10 +7,10 @@ namespace mage::transform {
     // id::id_type which is u32 for now. Can be diffrent unsigned integer type
     DEFINE_TYPED_ID(transform_id);
 
-    class Component final {
+    class component final {
     public:
-        constexpr explicit Component(transform_id id) : _id{ id } {}
-        constexpr Component() : _id{ id::invalid_id } {}
+        constexpr explicit component(transform_id id) : _id{ id } {}
+        constexpr component() : _id{ id::invalid_id } {}
 
         constexpr transform_id get_id() { return _id; }
         constexpr bool is_valid() const { return id::is_valid(_id); }

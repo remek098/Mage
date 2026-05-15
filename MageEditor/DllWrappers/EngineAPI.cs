@@ -19,10 +19,17 @@ namespace MageEditor.DllWrappers
     }
 
     [StructLayout(LayoutKind.Sequential)]
+    class ScriptComponent
+    {
+        public IntPtr ScriptCreator;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
     class GameEntityDescriptor
     {
         // it has to match GameEntityDesc from EngineDLL project (in /EngineDLL/EngineAPI.cpp file)
         public TransformComponent Transform = new TransformComponent();
+        public ScriptComponent Script = new ScriptComponent();
     }
 }
 
@@ -38,6 +45,14 @@ namespace MageEditor.DllWrappers
 
         [DllImport(_engineDll)]
         public static extern int UnloadGameCodeDll();
+
+        // NOTE: editor needs to pass this information from GameCode to EngineDll
+        [DllImport(_engineDll)]
+        public static extern IntPtr GetScriptCreator(string name);
+
+        [DllImport(_engineDll)]
+        [return: MarshalAs(UnmanagedType.SafeArray)]
+        public static extern string[] GetScriptNames();
 
         internal static class EntityAPI
         {
@@ -58,6 +73,11 @@ namespace MageEditor.DllWrappers
                     desc.Transform.Position = component.Position;
                     desc.Transform.Rotation = component.Rotation;
                     desc.Transform.Scale = component.Scale;
+                }
+
+                // script component
+                {
+                    //var c = entity.GetComponent<Script>();
                 }
 
                 return CreateGameEntity(desc);

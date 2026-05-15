@@ -70,9 +70,9 @@ namespace mage::id {
 #if _DEBUG
 	namespace detail
 	{
-		struct IdBase
+		struct id_base
 		{
-			constexpr explicit IdBase(id_type id) : _id{ id } {}
+			constexpr explicit id_base(id_type id) : _id{ id } {}
 
 			// for doing e.g. u32 id = ...
 			constexpr operator id_type() const { return _id; }
@@ -85,12 +85,12 @@ namespace mage::id {
 
 // one constructor takes value, other initializes with invalid index.
 #define DEFINE_TYPED_ID(name)												\
-	struct name final : id::detail::IdBase								\
+	struct name final : id::detail::id_base								\
 	{																		\
 		constexpr explicit name(id::id_type id)								\
-			: IdBase{id} {}													\
+			: id_base{id} {}													\
 																			\
-		constexpr name() : IdBase{ 0 } {}									\
+		constexpr name() : id_base{ 0 } {}									\
 	};
 #else
 #define DEFINE_TYPED_ID(name) using name = id::id_type;

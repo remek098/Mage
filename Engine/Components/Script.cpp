@@ -23,8 +23,27 @@ namespace mage::script {
             return reg;
         }
 
+        
 
-        // if generations match (as they should), and we have a valid entity (ScriptEntity is still Entity)
+        /*
+        NOTE: 
+        game code dll only holds game code and functions for instantiation
+        EngineDll.dll holds the data and engine code 
+        (e.g. pointers to game code's functions, which engine would later invoke when needed)
+
+        Data is exchanged via Level Editor
+        */
+#ifdef USE_WITH_EDITOR
+        utl::vector<std::string>& script_names() {
+            // NOTE: putting this static variable in function to avoid shenanigans with 
+            // initialization order of static data.
+            static utl::vector<std::string> names;
+            return names;
+        }
+#endif
+
+
+        // if generations match (as they should), and we have a valid entity (script_entity is still entity)
         // return true
         bool exists(script_id id) {
             assert(id::is_valid(id));
@@ -46,9 +65,27 @@ namespace mage::script {
             assert(result);
             return result;
         }
+
+        script_creator_fn_ptr get_script_creator(size_t tag) {
+            // script_registry is defined as std::unordered_map
+            // remember we put {tag, func_key} pair inside registry when we register a script.
+            auto script = mage::script::registery().find(tag);
+            assert(script != mage::script::registery().end() && script->first == tag);
+            return script->second; // ptr to creation function
+        }
+
+
+
+#ifdef USE_WITH_EDITOR
+        u8 add_script_name(const char* name) {
+            script_names().emplace_back(name);
+            return true;
+        }
+#endif // USE_WITH_EDITOR
+
     } // namespace detail
 
-    Component create(const InitInfo& info, game_entity::Entity entity) {
+    component create(const init_info& info, game_entity::entity entity) {
         assert(entity.is_valid());
         assert(info.script_creator);
 
@@ -69,18 +106,18 @@ namespace mage::script {
         }
 
         assert(id::is_valid(id));
-        // get position of where new ScriptEntity was added, ofc it is end of script_entities array
+        // get position of where new script_entity was added, ofc it is end of script_entities array
         const id::id_type index{ (id::id_type)script_entities.size() };
         script_entities.emplace_back(info.script_creator(entity));
         assert(script_entities.back()->get_id() == entity.get_id());    // should always be true
         id_mapping[id::index(id)] = index;
-        return Component{ id };
+        return component{ id };
     }
 
     // swap the element at the end of script_entities array with the element we want to delete.
-    // reset id_mapping for deleted Component,
+    // reset id_mapping for deleted component,
     // set new index that originally pointed to last element to the new position.
-    void remove(Component c) {
+    void remove(component c) {
         assert(c.is_valid() && exists(c.get_id()));
         const script_id id{ c.get_id() };
         const id::id_type index{ id_mapping[id::index(id)] };
@@ -91,3 +128,27 @@ namespace mage::script {
         id_mapping[id::index(id)] = id::invalid_id;
     }
 }
+
+#ifdef USE_WITH_EDITOR
+#include <atlsafe.h>
+
+extern "C" __declspec(dllexport)
+LPSAFEARRAY get_script_names() {
+    const u32 size = (u32)mage::script::script_names().size();
+    if ( !size ) return nullptr;
+
+    // NOTE: all this hustle just to get it to .NET/C# framework
+
+    // https://learn.microsoft.com/en-us/cpp/atl/reference/ccomsafearray-class?view=msvc-170
+    CComSafeArray<BSTR> names(size);
+    for ( u32 i = 0; i < size; ++i ) {
+        // https://learn.microsoft.com/en-us/cpp/atl/reference/ccomsafearray-class?view=msvc-170#setat
+        // A2BSTR_EX -> macro used to convert LPCSTR (ANSI string) to BSTR (Basic string / COM string)
+        names.SetAt(i, A2BSTR_EX(mage::script::script_names()[i].c_str()), false);
+    }
+
+    // returns pointer to SAFEARRAY object
+    // also the task of freeing this memory is "moved" to C# side of things -> so editor (garbage collected)
+    return names.Detach();
+}
+#endif // USE_WITH_EDITOR
