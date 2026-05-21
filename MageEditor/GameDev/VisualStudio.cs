@@ -25,6 +25,8 @@ namespace MageEditor.GameDev
         // VisualStudio.DTE.17.0 for VS2022
         private static readonly string _progID = "VisualStudio.DTE";
 
+        private static EnvDTE.BuildEvents? _buildEvents;
+        private static bool _eventsSubscribed = false;
 
         // https://learn.microsoft.com/en-us/windows/win32/api/objbase/nf-objbase-getrunningobjecttable
         [DllImport("ole32.dll")]
@@ -82,8 +84,11 @@ namespace MageEditor.GameDev
                     if (_vsInscance == null)
                     {
                         Type? visualStudioType = Type.GetTypeFromProgID(_progID, true);
-                        if(visualStudioType is not null) 
+                        if(visualStudioType is not null)
+                        {
                             _vsInscance = Activator.CreateInstance(visualStudioType) as EnvDTE80.DTE2;
+                            SubscribeBuildEvents();
+                        }
 
                     }
                 }
@@ -113,6 +118,19 @@ namespace MageEditor.GameDev
                 _vsInscance.Solution.Close(true);
             }
             _vsInscance?.Quit();
+        }
+
+        private static void SubscribeBuildEvents()
+        {
+            if (_vsInscance == null || _eventsSubscribed)
+                return;
+
+            _buildEvents = _vsInscance.Events.BuildEvents;
+
+            _buildEvents.OnBuildProjConfigBegin += OnBuildProjectBegin;
+            _buildEvents.OnBuildProjConfigDone += OnBuildProjectDone;
+
+            _eventsSubscribed = true;
         }
 
         /// <summary>
@@ -213,6 +231,7 @@ namespace MageEditor.GameDev
                     // debugger is either debugging current program or running it already if result is true
                     result = _vsInscance != null && 
                         (_vsInscance?.Debugger.CurrentProgram != null || _vsInscance?.Debugger.CurrentMode == EnvDTE.dbgDebugMode.dbgRunMode);
+                    try_again = false;
                 }
                 catch(Exception ex)
                 {
@@ -244,8 +263,11 @@ namespace MageEditor.GameDev
                         // NOTE: if() avoids closing visual studio window when we press a keyboard shortcut for building a project in editor.
                         if (_vsInscance.MainWindow.Visible == false) _vsInscance.MainWindow.Visible = showVSWindow;
 
-                        _vsInscance.Events.BuildEvents.OnBuildProjConfigBegin += OnBuildProjectBegin;
-                        _vsInscance.Events.BuildEvents.OnBuildProjConfigDone += OnBuildProjectDone;
+                        // NOTE: Don't add events like so, because we avoid garbage collection and reference COM object, therefore we use 
+                        // SubscribeBuildEvents() when creating _vsInstance in OpenVisualStudio()
+
+                        //_vsInscance.Events.BuildEvents.OnBuildProjConfigBegin += OnBuildProjectBegin;
+                        //_vsInscance.Events.BuildEvents.OnBuildProjConfigDone += OnBuildProjectDone;
                     }
 
 

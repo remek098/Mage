@@ -13,6 +13,7 @@ using System.Windows.Input;
 using MageEditor.Common;
 using MageEditor.GameDev;
 using MageEditor.DllWrappers;
+using MageEditor.Components;
 
 namespace MageEditor.GameProject
 {
@@ -60,6 +61,21 @@ namespace MageEditor.GameProject
         // for standalone application
         public BuildConfiguration StandaloneBuildConfig => BuildConfig == 0 ? BuildConfiguration.Debug : BuildConfiguration.Release;
         public BuildConfiguration DllBuildConfig => BuildConfig == 0 ? BuildConfiguration.DebugEditor : BuildConfiguration.ReleaseEditor;
+
+        // NOTE: filled in when we load in game code dll (so in Project.LoadGameCodeDll() method)
+        public string[]? _availableScriptNames;
+        public string[]? AvailableScriptNames
+        {
+            get => _availableScriptNames;
+            set
+            {
+                if(_availableScriptNames != value)
+                {
+                    _availableScriptNames = value;
+                    OnPropertyChanged(nameof(AvailableScriptNames));
+                }
+            }
+        }
 
         [DataMember(Name = "Scenes")]
         private ObservableCollection<Scene> _scenes = new ObservableCollection<Scene>();
@@ -177,6 +193,7 @@ namespace MageEditor.GameProject
 
         public void Unload()
         {
+            UnloadGameCodeDll();
             VisualStudio.CloseVisualStudio();
             UndoRedo.Reset();
         }
@@ -211,8 +228,15 @@ namespace MageEditor.GameProject
             var configName = GetConfigurationName(DllBuildConfig);
             var dll = $@"{Path}x64\{configName}\{Name}.dll";
 
+            AvailableScriptNames = null;
+
             if(File.Exists(dll) && EngineAPI.LoadGameCodeDll(dll) != 0)
             {
+                AvailableScriptNames = EngineAPI.GetScriptNames();
+
+                // remove entities before unloading game code dll (GameEntity.IsActive property adds game entity when being set to true)
+                // NOTE: Change this
+                ActiveScene?.GameEntities.Where(x => x.TryGetComponent<Script>() != null).ToList().ForEach(x => x.IsActive = true);
                 Logger.Log(MessageType.Info, "Game code DLL loaded successfully.");
             }
             else
@@ -225,9 +249,13 @@ namespace MageEditor.GameProject
 
         private void UnloadGameCodeDll()
         {
+            // remove entities before unloading game code dll (GameEntity.IsActive property removes game entity when being set to false)
+            ActiveScene?.GameEntities.Where(x => x.TryGetComponent<Script>() != null).ToList().ForEach(x => x.IsActive = false);
+
             if(EngineAPI.UnloadGameCodeDll() != 0)
             {
                 Logger.Log(MessageType.Info, "Game code DLL unloaded.");
+                AvailableScriptNames = null;
             }
         }
 
@@ -242,6 +270,7 @@ namespace MageEditor.GameProject
                 OnPropertyChanged(nameof(Scenes)); // this makes the controls to update it's bindings to this list.
             }
             ActiveScene = Scenes.FirstOrDefault(x => x.IsActive);
+            Debug.Assert(ActiveScene != null);
 
             // build game's code dll, but don't show a Visual Studio window.
             await BuildGameCodeDll(false);

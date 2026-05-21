@@ -1,4 +1,6 @@
 ﻿using MageEditor.Components;
+using MageEditor.GameProject;
+using MageEditor.Utilities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -77,9 +79,22 @@ namespace MageEditor.DllWrappers
 
                 // script component
                 {
-                    //var c = entity.GetComponent<Script>();
+                    var c = entity.TryGetComponent<Script>();
+                    if (c != null && Project.Current != null)
+                    {
+                        // available script names might be null e.g. when loading/reloading game code dll. -> Project.LoadGameCodeDll()
+                        if (Project.Current.AvailableScriptNames != null && Project.Current.AvailableScriptNames.Contains(c.Name))
+                        {
+                            desc.Script.ScriptCreator = GetScriptCreator(c.Name);
+                        }
+                        else
+                        {
+                            Logger.Log(MessageType.Error, $"Unable to find script with name {c.Name}. Game entity will be created without script component!");
+                        }
+                    }
                 }
 
+                // Logger.Log(MessageType.Info, $"Creating entity {entity.Name}");
                 return CreateGameEntity(desc);
             }
 
@@ -88,6 +103,7 @@ namespace MageEditor.DllWrappers
             private static extern void RemoveGameEntity(int id);
             public static void RemoveGameEntity(GameEntity entity)
             {
+                // Logger.Log(MessageType.Info, $"Removing entity {entity.Name}");
                 RemoveGameEntity(entity.EntityID);
             }
         }

@@ -36,7 +36,7 @@ namespace MageEditor.Editors
         {
             var btn = sender as Button;
             var vm = btn?.DataContext as Scene;
-            vm?.AddGameEntityCommand.Execute(new GameEntity(vm) { Name = "Empty Game Entity"});
+            vm?.AddGameEntityCommand.Execute(new GameEntity(vm) { Name = "Empty Game Entity" });
         }
 
         private void OnGameEntities_ListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)

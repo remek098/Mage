@@ -16,6 +16,7 @@ namespace MageEditor.Components
 {
     [DataContract]
     [KnownType(typeof(Transform))]
+    [KnownType(typeof(Script))]
     class GameEntity : ViewModelBase
     {
         // engine side
@@ -108,15 +109,53 @@ namespace MageEditor.Components
         // exact type -> gotta check if it's null though sometimes
         public Component? GetComponent(Type type) => Components.FirstOrDefault(c => c.GetType() == type);
         
-        // can include derived types -> say e.g. we want to get Transform, but we got another Component in our entity that also has Transform that derives from Component
+        /// <summary>
+        /// can include derived types -> say e.g. we want to get Transform, but we got another Component in our entity that also has Transform that derives from Component
+        /// If component is optional (so essentially any component that is not Transform) use TryGetComponent instead
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
+        /// <exception cref="InvalidOperationException"></exception>
         public T GetComponent<T>() where T : Component => 
             Components.OfType<T>().FirstOrDefault()
                 ?? throw new InvalidOperationException($"Component of type {typeof(T).Name} not found.");
 
-        // null if not the exact type; if exact type, then it's casted to it.
+        /// <summary>
+        /// null if not the exact type; if exact type, then it's casted to it.
+        /// Use this whenever component is not required to be in order for entity to exist (so anything other than Transform component)
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
         public T? TryGetComponent<T>() where T : Component => GetComponent(typeof(T)) as T;
         //public ICommand RenameCommand { get; private set; }
         //public ICommand IsEnabledCommand { get; private set; }
+
+        public bool AddComponent(Component component)
+        {
+            Debug.Assert(component != null);
+            if(!Components.Any(x => x.GetType() == component.GetType()))
+            {
+                IsActive = false; // removes the entity from the engine -> invokes EngineAPI.EntityAPI.RemoveGameEntity()
+                _components.Add(component);
+                IsActive = true; // creates back new entity in engine -> invokes EngineAPI.EntityAPI.CreateGameEntity()
+                return true;
+            }
+            Logger.Log(MessageType.Warning, $"Entity {Name} already has a {component.GetType().Name} component");
+            return false;
+        }
+
+        public void RemoveComponent(Component component)
+        {
+            Debug.Assert(component != null);
+            if (component is Transform) return; // we cannot and shouldn't ever remove Transform component
+
+            if(Components.Contains(component))
+            {
+                IsActive = false; // removes the entity from  the engine
+                _components.Remove(component);
+                IsActive = true; // adds it back to the engine
+            }
+        }
 
         [OnDeserialized]
         void OnDeserialized(StreamingContext context)
@@ -126,23 +165,7 @@ namespace MageEditor.Components
                 Components = new ReadOnlyObservableCollection<Component>(_components);
                 OnPropertyChanged(nameof(Components));
             }
-
-            // can't use these because if we did, we would have to undo e.g. 10 times if we changed a name of multiply selected entities.
-            //RenameCommand = new RelayCommand<string>(x =>
-            //{
-            //    var oldName = _name;
-            //    Name = x;
-            //    Project.UndoRedo.Add(new UndoRedoAction(nameof(Name), this, oldName, x, $"Renamed entity '{oldName}' to '{x}'"));
-            //}, x => x!= _name); // we can change name only if new name is diffrent than current name.
-
-            //IsEnabledCommand = new RelayCommand<bool>(x =>
-            //{
-            //    var oldName = _isEnabled;
-            //    IsEnabled = x;
-            //    Project.UndoRedo.Add(new UndoRedoAction(nameof(IsEnabled), this, oldName, x, x? $"Enabled {Name}" : $"Disabled {Name}"));
-            //});
-
-
+            
         }
 
         public GameEntity(Scene scene)
