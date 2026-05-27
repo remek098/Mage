@@ -296,5 +296,27 @@ namespace MageEditor.GameDev
             }
         }
 
+        /// <summary>
+        /// run the game code solution
+        /// </summary>
+        /// <param name="project"></param>
+        /// <param name="configName"></param>
+        /// <param name="debug">Start with debugger if true, otherwise start without debugging.</param>
+        public static void Run(Project project, string configName, bool debug)
+        {
+            if(_vsInscance != null && !IsDebugging() && BuildDone && BuildSucceded)
+            {
+                _vsInscance.ExecuteCommand(debug ? "Debug.Start" : "Debug.StartWithoutDebugging");
+            }
+        }
+
+        public static void Stop()
+        {
+            if(_vsInscance != null && IsDebugging())
+            {
+                _vsInscance.ExecuteCommand("Debug.StopDebugging");
+            }
+        }
+
     }
 }

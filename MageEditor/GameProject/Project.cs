@@ -111,6 +111,18 @@ namespace MageEditor.GameProject
 
         public ICommand SaveCommand { get; private set; }
 
+        /// <summary>
+        /// start game application in the debugger.
+        /// </summary>
+        public ICommand DebugStartCommand { get; private set; }
+        /// <summary>
+        /// start game application without debugging.
+        /// </summary>
+        public ICommand DebugStartWithoutDebuggingCommand { get; private set; }
+        /// <summary>
+        /// stop game application if running in debugger.
+        /// </summary>
+        public ICommand DebugStopCommand { get; private set; }
         public ICommand BuildCommand { get; private set; }
 
         private void SetCommands()
@@ -151,9 +163,14 @@ namespace MageEditor.GameProject
             UndoCommand = new RelayCommand<object>(x => UndoRedo.Undo(), x => UndoRedo.UndoList.Any());
             RedoCommand = new RelayCommand<object>(x => UndoRedo.Redo(), x => UndoRedo.RedoList.Any());
             SaveCommand = new RelayCommand<object>(x => Save(this));
+            
+            DebugStartCommand = new RelayCommand<object>(async x => await RunGame(true), x => !VisualStudio.IsDebugging() && VisualStudio.BuildDone);
+            DebugStartWithoutDebuggingCommand = new RelayCommand<object>(async x => await RunGame(false), x => !VisualStudio.IsDebugging() && VisualStudio.BuildDone);
+            DebugStopCommand = new RelayCommand<object>(async x => await StopGame(), x => VisualStudio.IsDebugging());
 
             // if visual studio is already running this command, we cannot use this command until it's done
             BuildCommand = new RelayCommand<bool>(async x => await BuildGameCodeDll(x), x => !VisualStudio.IsDebugging() && VisualStudio.BuildDone);
+
 
             // NOTE: Have to do this, because initially we await in OnDeserialized() -> when launching editor.
             // this will inform UI that we got commands initialized,
@@ -163,6 +180,9 @@ namespace MageEditor.GameProject
             OnPropertyChanged(nameof(UndoCommand));
             OnPropertyChanged(nameof(RedoCommand));
             OnPropertyChanged(nameof(SaveCommand));
+            OnPropertyChanged(nameof(DebugStartCommand));
+            OnPropertyChanged(nameof (DebugStartWithoutDebuggingCommand));
+            OnPropertyChanged(nameof(DebugStopCommand));
             OnPropertyChanged(nameof(BuildCommand));
         }
 
@@ -204,6 +224,18 @@ namespace MageEditor.GameProject
             Serializer.ToFile(project, project.FullPath);
             Logger.Log(MessageType.Info, $"Project saved to {project.FullPath}");
         }
+
+        private async Task RunGame(bool debug)
+        {
+            string configName = GetConfigurationName(StandaloneBuildConfig);
+            await Task.Run(() => VisualStudio.BuildSolution(this, configName, debug));
+            if(VisualStudio.BuildSucceded)
+            {
+                await Task.Run(() => VisualStudio.Run(this, configName, debug));
+            }
+        }
+
+        private async Task StopGame() => await Task.Run(() => VisualStudio.Stop());
 
 
         private async Task BuildGameCodeDll(bool showWindow = true)
