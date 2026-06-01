@@ -225,12 +225,37 @@ namespace MageEditor.GameProject
             Logger.Log(MessageType.Info, $"Project saved to {project.FullPath}");
         }
 
+        private void SaveToBinary()
+        {
+            var configName = GetConfigurationName(StandaloneBuildConfig);
+            var bin = $@"{Path}x64\{configName}\game.bin";
+
+            using (var bw = new BinaryWriter(File.Open(bin, FileMode.Create, FileAccess.Write)))
+            {
+                if (ActiveScene != null)
+                {
+                    bw.Write(ActiveScene.GameEntities.Count);
+                    foreach (var entity in ActiveScene.GameEntities)
+                    {
+                        bw.Write(0); // NOTE: entity type -> reserved for later
+                        bw.Write(entity.Components.Count);
+                        foreach(var component in entity.Components)
+                        {
+                            bw.Write((int)component.ToEnumType());
+                            component.WriteToBinary(bw);
+                        }
+                    }
+                }
+            }
+        }
+
         private async Task RunGame(bool debug)
         {
             string configName = GetConfigurationName(StandaloneBuildConfig);
             await Task.Run(() => VisualStudio.BuildSolution(this, configName, debug));
             if(VisualStudio.BuildSucceded)
             {
+                SaveToBinary(); // so that we have up to date data in the "called" game
                 await Task.Run(() => VisualStudio.Run(this, configName, debug));
             }
         }

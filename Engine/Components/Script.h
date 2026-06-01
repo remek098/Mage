@@ -13,4 +13,5 @@ namespace mage::script {
 	// managing transform components with usage of these 2 functions below
 	component		create(const init_info& info, game_entity::entity entity);
 	void			remove(component c);
+	void			update(f32 dt);
 }

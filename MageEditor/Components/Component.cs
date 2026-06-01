@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Runtime.Serialization;
 using System.Text;
@@ -14,12 +15,15 @@ namespace MageEditor.Components
     [DataContract]
     abstract class Component : ViewModelBase
     {
-        // we need that so that we know what type of multi-select component to return when we have detected e.g. Transform component during multi-selection
-        public abstract IMSComponent GetMultiSelectionComponent(MSEntity msEntity);
 
 
         [DataMember]
         public GameEntity Owner { get; private set; }
+
+        // we need that so that we know what type of multi-select component to return when we have detected e.g. Transform component during multi-selection
+        public abstract IMSComponent GetMultiSelectionComponent(MSEntity msEntity);
+
+        public abstract void WriteToBinary(BinaryWriter bw);
 
         public Component(GameEntity owner)
         {

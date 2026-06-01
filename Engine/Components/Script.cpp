@@ -127,6 +127,12 @@ namespace mage::script {
         id_mapping[id::index(last_id)] = index;
         id_mapping[id::index(id)] = id::invalid_id;
     }
+
+    void update(f32 dt) {
+        for ( auto& ptr : script_entities ) {
+            ptr->update(dt);
+        }
+    }
 }
 
 #ifdef USE_WITH_EDITOR

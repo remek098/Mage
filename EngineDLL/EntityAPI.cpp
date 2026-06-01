@@ -17,8 +17,8 @@ namespace {
         transform::init_info to_init_info() {
             using namespace DirectX;
             transform::init_info info{};
-            memcpy(info.position, position, sizeof(f32) * _countof(position));
-            memcpy(info.scale, scale, sizeof(f32) * _countof(scale));
+            memcpy(info.position, position, sizeof(position));
+            memcpy(info.scale, scale, sizeof(scale));
 
             // kinda don't have to use aligned versions of XMFLOAT vectors
             XMFLOAT3A rot{ rotation };
@@ -26,7 +26,7 @@ namespace {
 
             XMFLOAT4A rot_quat{};
             XMStoreFloat4A(&rot_quat, quat);
-            memcpy(&info.rotation[0], &rot_quat.x, sizeof(f32) * _countof(info.rotation));
+            memcpy(&info.rotation[0], &rot_quat.x, sizeof(info.rotation));
 
             return info;
         }

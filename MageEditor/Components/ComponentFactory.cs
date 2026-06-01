@@ -26,5 +26,15 @@ namespace MageEditor.Components
             Debug.Assert((int)comp_type < _functions.Length);
             return _functions[(int)comp_type];
         }
+
+        public static ComponentType ToEnumType(this Component component)
+        {
+            return component switch
+            {
+                Transform _ => ComponentType.Transform,
+                Script _ => ComponentType.Script,
+                _ => throw new ArgumentException("Unknown component type."),
+            };
+        }
     }
 }

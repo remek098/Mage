@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Runtime.Serialization;
 using System.Text;
@@ -27,7 +28,20 @@ namespace MageEditor.Components
         }
 
         public override IMSComponent GetMultiSelectionComponent(MSEntity msEntity) => new MSScript(msEntity);
-        
+
+        /// <summary>
+        /// writes script name's:
+        /// <para> 1) Length of UTF8 encoded script name (string) </para>
+        /// <para> 2) Writes script name's (string) bytes encoded with UTF8 </para>
+        /// </summary>
+        /// <param name="bw"></param>
+        public override void WriteToBinary(BinaryWriter bw)
+        {
+            var nameBytes = Encoding.UTF8.GetBytes(Name);
+            bw.Write(nameBytes.Length);
+            bw.Write(nameBytes);
+        }
+
         public Script(GameEntity owner) : base(owner)
         {
         }
