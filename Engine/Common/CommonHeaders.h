@@ -22,3 +22,11 @@
 #include "Id.h"
 #include "../Utilities/Utilities.h"
 #include "../Utilities/MathTypes.h"
+
+#ifdef _DEBUG
+// works kinda same as assert()
+#define DEBUG_ONLY_EXPR(x) x
+#else
+// works kinda same as assert()
+#define DEBUG_ONLY_EXPR(x) (void(0))
+#endif

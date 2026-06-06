@@ -142,12 +142,12 @@ namespace mage::platform {
                     GetWindowRect(info.hwnd, &rect);
                     info.top_left.x = rect.left;
                     info.top_left.y = rect.top;
-                    info.style = 0; // no borders, no title bar when in full screen mode
-                    SetWindowLongPtr(info.hwnd, GWL_STYLE, info.style);
+                    // info.style = 0; // no borders, no title bar when in full screen mode
+                    SetWindowLongPtr(info.hwnd, GWL_STYLE, 0);
                     ShowWindow(info.hwnd, SW_MAXIMIZE); // fills entire screen with no borders and title bar
                 }
                 else {
-                    info.style = WS_VISIBLE | WS_OVERLAPPEDWINDOW; // setting it to "default" style as it was during window creation
+                    // info.style = WS_VISIBLE | WS_OVERLAPPEDWINDOW; // setting it to "default" style as it was during window creation
                     SetWindowLongPtr(info.hwnd, GWL_STYLE, info.style);
                     resize_window(info, info.client_area);
                     ShowWindow(info.hwnd, SW_SHOWNORMAL);
@@ -172,7 +172,7 @@ namespace mage::platform {
 
         math::u32vec4 get_window_size(window_id id) {
             window_info& info = get_window_from_id(id);
-            RECT area{ info.is_fullscreen ? info.fullscreen_area : info.client_area };
+            RECT& area{ info.is_fullscreen ? info.fullscreen_area : info.client_area };
             return { (u32)area.left, (u32)area.top, (u32)area.right, (u32)area.bottom };
         }
 
@@ -210,21 +210,29 @@ namespace mage::platform {
         // create an instance of window class
 
         window_info info{};
-        RECT rc{ info.client_area };
 
-        // adjust the window size for the correct device size -> https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-adjustwindowrect
-        AdjustWindowRect(&rc, info.style, FALSE);
+        // adjust according to what we have -> if width and height are 0 value, we use default ones provided in 
+        // definition of window_info struct (right = 1920; bottom = 1080;)
+        info.client_area.right = (init_info && init_info->width) ? info.client_area.left + init_info->width : info.client_area.right;
+        info.client_area.bottom = (init_info && init_info->height) ? info.client_area.top + init_info->height : info.client_area.bottom;
 
-        // unicode characters
-        const wchar_t* caption = (init_info && init_info->caption) ? init_info->caption : L"Mage Game";
-        const i32 left = (init_info && init_info->left) ? init_info->left : info.client_area.left;
-        const i32 top = (init_info && init_info->top) ? init_info->top : info.client_area.top;
-        const i32 width = (init_info && init_info->width) ? init_info->width : rc.right - rc.left;
-        const i32 height = (init_info && init_info->height) ? init_info->height : rc.bottom - rc.top;
-
+        RECT rect{ info.client_area };
         // if we have parent, we're using it with a level editor, therefore we have to set it as a child window
         // otherwise, it's not a child window
         info.style |= parent ? WS_CHILD : WS_OVERLAPPEDWINDOW;
+         
+        // adjust the window size for the correct device size -> https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-adjustwindowrect
+        AdjustWindowRect(&rect, info.style, FALSE);
+
+        // unicode characters
+        const wchar_t* caption = (init_info && init_info->caption) ? init_info->caption : L"Mage Game";
+        // left and top can be 0 -> then window appears on top-left side of a screen
+        const i32 left = init_info ? init_info->left : info.top_left.x;
+        const i32 top = init_info ? init_info->top : info.top_left.y;
+        const i32 width = rect.right - rect.left;
+        const i32 height = rect.bottom - rect.top;
+
+        
 
         info.hwnd = CreateWindowEx(
             0,                       // extended style
@@ -240,7 +248,8 @@ namespace mage::platform {
         );
 
         if ( info.hwnd ) {
-            SetLastError(0); // clearing it in case we try to register same window class again -> WeWindows stuff KappaChungusDeluxe
+            // clearing it in case we try to register same window class again -> WeWindows stuff KappaChungusDeluxe
+            DEBUG_ONLY_EXPR(SetLastError(0));
 
             // set long_ptr so that we can access window_id from internal_window_proc()
             const window_id id{ add_to_windows(info) };
@@ -266,7 +275,7 @@ namespace mage::platform {
         remove_from_windows(id);
     }
 
-#elif
+#else
 #error "You gotta implement at least one platform bruh"
 #endif // _WIN64
 
@@ -293,7 +302,7 @@ namespace mage::platform {
         set_window_caption(_id, caption);
     }
 
-    const math::u32vec4 window::size() const {
+    math::u32vec4 window::size() const {
         assert(is_valid());
         return get_window_size(_id);
     }
@@ -303,12 +312,12 @@ namespace mage::platform {
         resize_window(_id, width, height);
     }
 
-    const u32 window::width() const {
+    u32 window::width() const {
         math::u32vec4 s = size();
         return s.z - s.x; // windows right - windows left
     }
 
-    const u32 window::height() const {
+    u32 window::height() const {
         math::u32vec4 s = size();
         return s.w - s.y; // window bottom - window top
     }

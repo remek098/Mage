@@ -32,6 +32,8 @@ namespace mage::transform {
 
 
     void remove(component comp) {
+        // NOTE: technically we don't have to clean up positions, rotations and scales utl::vectors there,
+        // since create() manages allocation quite well.
         assert(comp.is_valid());
     }
 

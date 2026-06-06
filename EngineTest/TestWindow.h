@@ -46,7 +46,7 @@ class EngineTest : public Test {
 public:
     bool initialize() override {
         platform::window_init_info info[] = {
-            {&win_proc, nullptr, L"Test window 1", 100, 100, 400, 800},
+            {&win_proc, nullptr, L"Test window 1", 0, 0, 400, 800},
             {&win_proc, nullptr, L"Test window 2", 150, 150, 600, 400},
             {&win_proc, nullptr, L"Test window 3", 200, 200, 400, 400},
             {&win_proc, nullptr, L"Test window 4", 250, 250, 800, 600}
