@@ -40,6 +40,8 @@ namespace MageEditor.DllWrappers
 {
     static class EngineAPI
     {
+        // NOTE: using int return type for matching u32 (unsigned 32-bit int) return type from EngineDll functions
+        // instead of unsigned int (u32), because it doesn't make any diffrence for bit interpretation in this case
         private const string _engineDll = "EngineDLL.dll";
 
         [DllImport(_engineDll, CharSet = CharSet.Ansi)]
@@ -55,6 +57,25 @@ namespace MageEditor.DllWrappers
         [DllImport(_engineDll)]
         [return: MarshalAs(UnmanagedType.SafeArray)]
         public static extern string[] GetScriptNames();
+
+
+        // ----------------------------- Render surfaces
+        
+        [DllImport(_engineDll)]
+        public static extern int CreateRenderSurface(IntPtr host, int width, int height);
+        [DllImport(_engineDll)]
+        public static extern void RemoveRenderSurface(int surfaceId);
+
+        /// <summary>
+        /// Used because of Data-Oriented Design for window management
+        /// </summary>
+        /// <param name="surfaceId"></param>
+        /// <returns></returns>
+        [DllImport(_engineDll)]
+        public static extern IntPtr GetWindowHandle(int surfaceId);
+
+
+        // -------------------------- END Render surfaces
 
         internal static class EntityAPI
         {

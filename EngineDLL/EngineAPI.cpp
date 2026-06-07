@@ -1,6 +1,9 @@
 #include "Common.h"
 #include "CommonHeaders.h"
 #include "..\Engine\Components\Script.h"
+#include "..\Graphics\Renderer.h"
+#include "..\Platform\PlatformTypes.h"
+#include "..\Platform\Platform.h"
 
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -21,6 +24,8 @@ namespace {
     // same signature as get_script_names() in Engine
     using _get_script_names = LPSAFEARRAY(*)(void);
     _get_script_names get_script_names{ nullptr };
+
+    utl::vector<gfx::render_surface> render_surfaces;
 }
 
 MAGE_ED_INTERFACE u32 LoadGameCodeDll(const char* dll_path) {
@@ -52,4 +57,27 @@ MAGE_ED_INTERFACE script::detail::script_creator_fn_ptr GetScriptCreator(const c
 
 MAGE_ED_INTERFACE LPSAFEARRAY GetScriptNames() {
     return (game_code_dll && get_script_names) ? get_script_names() : nullptr;
+}
+
+MAGE_ED_INTERFACE u32 CreateRenderSurface(HWND host, i32 width, i32 height) {
+    assert(host);
+    // no callback, no caption for a window inside editor; top_left = (0,0)
+    platform::window_init_info info{ nullptr, host, nullptr, 0, 0, width, height };
+    // NOTE: no gfx::surface until we have an implementation for graphics renderer
+    gfx::render_surface surface{ platform::create_window(&info), {} };
+    assert(surface.window.is_valid());
+
+    render_surfaces.emplace_back(surface);
+    return (u32)render_surfaces.size() - 1;
+}
+
+MAGE_ED_INTERFACE void RemoveRenderSurface(u32 id) {
+    assert(id < render_surfaces.size());
+    platform::remove_window(render_surfaces[id].window.get_id());
+    // NOTE: not removing items from the array of render_surfaces; will do so after having a free-list cointainer
+}
+
+MAGE_ED_INTERFACE HWND GetWindowHandle(u32 id) {
+    assert(id < render_surfaces.size());
+    return (HWND)render_surfaces[id].window.handle();
 }

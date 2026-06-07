@@ -1,5 +1,5 @@
 Upon first build and launch you have to specify the location of Mage location (the root folder for repo on your disk):
-Environment variable MAGE_ENGINE might looks like so after typing "set" command in Command Prompt:
+Environment variable MAGE_ENGINE might look like so after typing "set" command in Command Prompt:
     MAGE_ENGINE=F:\DEV\MAGE\MAGE_GIT\MAGE\
 
 Shortcuts in the editor (can check them and change inside MageEditor\Editors\WorldEditorView.xaml): \
@@ -30,5 +30,5 @@ To see (or rather hear) whether or not scripts for the game work, create a test 
         }
     } // namespace TestProject1
 
-Of course you still gotta bind in the editor the script component for as many entities as you wish to.
+Of course, you still gotta bind in the editor the script component for as many entities as you wish to.
 After building "game" through editor and launching it through editor you should hear Beeps.
