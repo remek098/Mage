@@ -81,3 +81,9 @@ MAGE_ED_INTERFACE HWND GetWindowHandle(u32 id) {
     assert(id < render_surfaces.size());
     return (HWND)render_surfaces[id].window.handle();
 }
+
+MAGE_ED_INTERFACE void ResizeRenderSurface(u32 id) {
+    assert(id < render_surfaces.size());
+    render_surfaces[id].window.resize(0, 0);
+    // NOTE: not removing items from the array of render_surfaces; will do so after having a free-list cointainer
+}

@@ -75,6 +75,9 @@ namespace MageEditor.DllWrappers
         public static extern IntPtr GetWindowHandle(int surfaceId);
 
 
+        [DllImport(_engineDll)]
+        public static extern void ResizeRenderSurface(int surfaceId);
+
         // -------------------------- END Render surfaces
 
         internal static class EntityAPI

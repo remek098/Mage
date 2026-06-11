@@ -94,7 +94,7 @@ namespace mage::platform {
                 assert(info->hwnd);
                 // if something happened to size, we update appropriate area/rect for us to read about the changes
                 GetClientRect(info->hwnd, info->is_fullscreen ? &info->fullscreen_area : &info->client_area);
-
+                
             }
 
             LONG_PTR long_ptr = GetWindowLongPtr(hwnd, 0);
@@ -120,12 +120,21 @@ namespace mage::platform {
         void resize_window(window_id id, u32 width, u32 height) {
             window_info& info = get_window_from_id(id);
 
-            // checking just in case someone e.g. changes full screen resolution, e.g. throughout game settings
-            RECT& area{ info.is_fullscreen ? info.fullscreen_area : info.client_area };
-            area.bottom = area.top + height;
-            area.right = area.left + width;
+            // NOTE: when window is hosted in the level editor we just update the internal data, 
+            // i.e. client area dimensions
+            // check if window is parented
+            if ( info.style & WS_CHILD ) {
+                GetClientRect(info.hwnd, &info.client_area);
+            }
+            else {
+                // checking just in case someone e.g. changes full screen resolution, e.g. throughout game settings
+                RECT& area{ info.is_fullscreen ? info.fullscreen_area : info.client_area };
+                area.bottom = area.top + height;
+                area.right = area.left + width;
 
-            resize_window(info, area);
+                resize_window(info, area);
+            }
+
         }
 
         void set_window_fullscreen(window_id id, bool is_fullscreen) {
