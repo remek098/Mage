@@ -5,6 +5,7 @@
 /Engine/x64/
 /EngineTest/x64/
 /EngineDLL/x64/
+/ContentTools/x64/
 
 # WPF obj directory that gets generated
 /MageEditor/obj/
