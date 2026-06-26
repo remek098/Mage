@@ -1,0 +1,14 @@
+﻿  PrimitiveMesh.cpp
+F:\dev\Mage\Mage_git\Mage\ContentTools\PrimitiveMesh.cpp(67,23): warning C4189: 'u_step': local variable is initialized but not referenced
+F:\dev\Mage\Mage_git\Mage\ContentTools\PrimitiveMesh.cpp(68,23): warning C4189: 'v_step': local variable is initialized but not referenced
+F:\dev\Mage\Mage_git\Mage\ContentTools\PrimitiveMesh.cpp(147,72): warning C4100: 'info': unreferenced parameter
+F:\dev\Mage\Mage_git\Mage\ContentTools\PrimitiveMesh.cpp(147,33): warning C4100: 'scene': unreferenced parameter
+F:\dev\Mage\Mage_git\Mage\ContentTools\PrimitiveMesh.cpp(150,77): warning C4100: 'info': unreferenced parameter
+F:\dev\Mage\Mage_git\Mage\ContentTools\PrimitiveMesh.cpp(150,38): warning C4100: 'scene': unreferenced parameter
+F:\dev\Mage\Mage_git\Mage\ContentTools\PrimitiveMesh.cpp(153,78): warning C4100: 'info': unreferenced parameter
+F:\dev\Mage\Mage_git\Mage\ContentTools\PrimitiveMesh.cpp(153,39): warning C4100: 'scene': unreferenced parameter
+F:\dev\Mage\Mage_git\Mage\ContentTools\PrimitiveMesh.cpp(156,76): warning C4100: 'info': unreferenced parameter
+F:\dev\Mage\Mage_git\Mage\ContentTools\PrimitiveMesh.cpp(156,37): warning C4100: 'scene': unreferenced parameter
+F:\dev\Mage\Mage_git\Mage\ContentTools\PrimitiveMesh.cpp(159,75): warning C4100: 'info': unreferenced parameter
+F:\dev\Mage\Mage_git\Mage\ContentTools\PrimitiveMesh.cpp(159,36): warning C4100: 'scene': unreferenced parameter
+  ContentTools.vcxproj -> F:\dev\Mage\Mage_git\Mage\x64\DebugEditor\ContentTools.dll

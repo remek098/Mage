@@ -14,10 +14,17 @@ namespace MageEditor.Utilities
     // NOTE: HwndHost inherits from FrameworkElement, so we can use it in our UI
     class RenderSurfaceHost : HwndHost
     {
+        private readonly int VK_LBUTTON = 0x01; // constant in Windows.h
+
         private IntPtr _renderSurfaceWindowHandle = IntPtr.Zero;
         private readonly int _width = 800;
         private readonly int _height = 600;
         private DelayedEventTimer _resizeTimer;
+
+
+        [DllImport("user32.dll")]
+        private static extern short GetAsyncKeyState(int vKey);
+
 
         public int SurfaceId { get; private set; } = ID.INVALID_ID;
 
@@ -42,21 +49,22 @@ namespace MageEditor.Utilities
         }
 
 
-        public void Resize()
-        {
-            // NOTE: Resize() will be called multiple times, the resizing will be held off until for some time it's not
-            // being called again.
-            // Which is good, since we handle resizing through WM_SIZE message
-            _resizeTimer.Trigger();
-        }
+        //public void Resize()
+        //{
+        //    // NOTE: Resize() will be called multiple times, the resizing will be held off until for some time it's not
+        //    // being called again.
+        //    // Which is good, since we handle resizing through WM_SIZE message
+        //    _resizeTimer.Trigger();
+        //}
 
         private void Resize(object? sender, DelayedEventTimerArgs e)
         {
-            e.RepeatEvent = Mouse.LeftButton == MouseButtonState.Pressed;
+            //e.RepeatEvent = Mouse.LeftButton == MouseButtonState.Pressed;
+            // if it's pressed, most significant bit is set, that means the value is below 0
+            e.RepeatEvent = GetAsyncKeyState(VK_LBUTTON) < 0;
             if(!e.RepeatEvent)
             {
                 EngineAPI.ResizeRenderSurface(SurfaceId);
-
                 Logger.Log(MessageType.Info, "Resized RenderSurfaceHost.");
             }
         }
@@ -69,6 +77,8 @@ namespace MageEditor.Utilities
             // quarter of a second -> if for this amount of time Resize() was not called, it will call this function for us
             _resizeTimer = new DelayedEventTimer(TimeSpan.FromMilliseconds(250.0));
             _resizeTimer.Triggered += Resize;
+            // because HwndHost is FrameworkElement
+            SizeChanged += (s, e) => _resizeTimer.Trigger();
         }
 
     }

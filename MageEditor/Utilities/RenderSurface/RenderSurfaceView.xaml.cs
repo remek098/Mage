@@ -32,8 +32,8 @@ namespace MageEditor.Utilities
 
 
         private RenderSurfaceHost? _host = null;
-        private bool _canResize = true;
-        private bool _isBeingMoved = false;
+        // private bool _canResize = true;
+        // private bool _isBeingMoved = false;
 
 
         public RenderSurfaceView()
@@ -56,48 +56,48 @@ namespace MageEditor.Utilities
             _host.MessageHook += new HwndSourceHook(HostMsgFilter);
             Content = _host;
             
-            // now we can find any particular window (not just MainWindow) that has RenderSurfaceView and attach resizing HwndMessageHook
-            var window = this.FindVisualParent<Window>();
-            Debug.Assert(window != null);
+            //// now we can find any particular window (not just MainWindow) that has RenderSurfaceView and attach resizing HwndMessageHook
+            //var window = this.FindVisualParent<Window>();
+            //Debug.Assert(window != null);
 
-            var helper = new WindowInteropHelper(window);
-            if(helper != null)
-            {
-                // now resize messages will also be sent and received and handled inside HwndMessageHook
-                // mainly for when changing size of MainWindow
-                HwndSource.FromHwnd(helper.Handle)?.AddHook(HwndMessageHook);
-            }
+            //var helper = new WindowInteropHelper(window);
+            //if(helper != null)
+            //{
+            //    // now resize messages will also be sent and received and handled inside HwndMessageHook
+            //    // mainly for when changing size of MainWindow
+            //    HwndSource.FromHwnd(helper.Handle)?.AddHook(HwndMessageHook);
+            //}
         }
 
 
-        private nint HwndMessageHook(nint hwnd, int msg, nint wParam, nint lParam, ref bool handled)
-        {
-            switch ((Win32Message)msg)
-            {
-                // NOTE: handling resizing tthere because internal_wnd_proc in engine doesn't handle resizing.
-                // 1) we want to keep client_area resized properly
-                // 2) render_surface has to be kept updated on resize
-                case Win32Message.WM_SIZING:
-                    _canResize = false;
-                    _isBeingMoved = false;
-                    break;
-                case Win32Message.WM_ENTERSIZEMOVE:
-                    _isBeingMoved = true;
-                    break;
-                case Win32Message.WM_EXITSIZEMOVE:
-                    _canResize = true;
-                    if (!_isBeingMoved)
-                    {
-                        _host?.Resize();
-                    }
-                    break;
+        //private nint HwndMessageHook(nint hwnd, int msg, nint wParam, nint lParam, ref bool handled)
+        //{
+        //    switch ((Win32Message)msg)
+        //    {
+        //        // NOTE: handling resizing tthere because internal_wnd_proc in engine doesn't handle resizing.
+        //        // 1) we want to keep client_area resized properly
+        //        // 2) render_surface has to be kept updated on resize
+        //        case Win32Message.WM_SIZING:
+        //            _canResize = false;
+        //            _isBeingMoved = false;
+        //            break;
+        //        case Win32Message.WM_ENTERSIZEMOVE:
+        //            _isBeingMoved = true;
+        //            break;
+        //        case Win32Message.WM_EXITSIZEMOVE:
+        //            _canResize = true;
+        //            if (!_isBeingMoved)
+        //            {
+        //                _host?.Resize();
+        //            }
+        //            break;
 
-                default:
-                    break;
-            }
+        //        default:
+        //            break;
+        //    }
 
-            return IntPtr.Zero; // returning 0, because we don't do anything special.
-        }
+        //    return IntPtr.Zero; // returning 0, because we don't do anything special.
+        //}
 
         // NOTE: very similar to wnd_proc -> handled indicates whether we want to let window know if we handled event or not
         private nint HostMsgFilter(nint hwnd, int msg, nint wParam, nint lParam, ref bool handled)
@@ -113,10 +113,10 @@ namespace MageEditor.Utilities
                 case Win32Message.WM_ENTERSIZEMOVE: throw new Exception();
                 case Win32Message.WM_EXITSIZEMOVE: throw new Exception();
                 case Win32Message.WM_SIZE:
-                    if(_canResize)
-                    {
-                        _host?.Resize();
-                    }
+                    //if(_canResize)
+                    //{
+                    //    _host?.Resize();
+                    //}
                     break;
                 default:
                     break;

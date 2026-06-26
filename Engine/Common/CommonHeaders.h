@@ -14,14 +14,15 @@
 #if defined(_WIN64)
 #include <DirectXMath.h>
 
-#include <atlsafe.h>
+// #include <atlsafe.h> // for LPSAFEARRAY stuff
 #endif
 
 // common headers
 #include "PrimitiveTypes.h"
-#include "Id.h"
+#include"..\Utilities\Math.h"
 #include "../Utilities/Utilities.h"
 #include "../Utilities/MathTypes.h"
+#include "Id.h"
 
 #ifdef _DEBUG
 // works kinda same as assert()

@@ -11,6 +11,7 @@
 
 
 #include <Windows.h>
+#include <atlsafe.h>
 
 using namespace mage;
 

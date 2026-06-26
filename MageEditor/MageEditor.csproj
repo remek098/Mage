@@ -6,14 +6,19 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+    <XamlDebuggingInformation>True</XamlDebuggingInformation>
     <!-- <BaseOutputPath>..\x64\</BaseOutputPath> -->
     <OutputPath>..\x64\$(Configuration)\</OutputPath>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <UseCommonOutputDirectory>true</UseCommonOutputDirectory>
-    <Configurations>Debug;Release;DebugEditor;ReleaseEditor</Configurations>
+    <Configurations>DebugEditor;ReleaseEditor</Configurations>
     <Platforms>x64</Platforms>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="Resources\PrimitiveMeshView\PlaneTexture.png" />
+  </ItemGroup>
 
   <ItemGroup>
     <COMReference Include="EnvDTE80">
@@ -34,6 +39,10 @@
       <Isolated>false</Isolated>
       <EmbedInteropTypes>False</EmbedInteropTypes>
     </COMReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Resources\PrimitiveMeshView\PlaneTexture.png" />
   </ItemGroup>
 
 </Project>

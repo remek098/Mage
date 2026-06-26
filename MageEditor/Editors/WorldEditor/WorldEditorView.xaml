@@ -6,7 +6,9 @@
              xmlns:local="clr-namespace:MageEditor.Editors"
              xmlns:utl = "clr-namespace:MageEditor.Utilities"
              xmlns:ctrl = "clr-namespace:MageEditor.Utilities.Controls"
-             xmlns:sys ="clr-namespace:System;assembly=mscorlib"
+             xmlns:sys ="clr-namespace:System;assembly=mscorlib" 
+             xmlns:gameproject="clr-namespace:MageEditor.GameProject" 
+             d:DataContext="{d:DesignInstance Type=gameproject:Project}"
              mc:Ignorable="d" Focusable="True"
              d:DesignHeight="450" d:DesignWidth="800">
 
@@ -43,6 +45,7 @@
                 <ComboBoxItem Content="Debug"/>
                 <ComboBoxItem Content="Release"/>
             </ComboBox>
+            <Button Content="Primitive mesh" Click="OnCreatePrimitiveMesh_Button_Click" Margin="10,0"/>
         </StackPanel>
 
         <Grid Grid.Row="1">

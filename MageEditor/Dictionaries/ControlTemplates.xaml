@@ -570,7 +570,8 @@
                             Margin="0,2,0,3" Background="{TemplateBinding BorderBrush}"
                             Padding="5,2"
                             CornerRadius="10" 
-                            BorderThickness="{TemplateBinding BorderThickness}">
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            BorderBrush="{StaticResource Editor.Window.GrayBrush5}">
                         <Grid MinWidth="50" x:Name="grid">
                             <!--TextBlock part, it's what is displaying the number-->
                             <TextBlock x:Name="PART_textBlock" Text="{Binding Value, RelativeSource={RelativeSource TemplatedParent}}"
@@ -597,7 +598,7 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter Property="BorderBrush" TargetName="border" Value="{StaticResource Editor.Window.GrayBrush6}"/>
+                            <Setter Property="BorderBrush" TargetName="border" Value="{StaticResource Editor.OrangeBrush}"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" TargetName="grid" Value="0.5"/>

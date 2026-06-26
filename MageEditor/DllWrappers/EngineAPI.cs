@@ -8,8 +8,10 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
+using MageEditor.EngineAPIStructs;
 
-namespace MageEditor.DllWrappers
+
+namespace MageEditor.EngineAPIStructs
 {
     // define all appropriate structs the same way as they've been defined inside EngineDLL project.
     [StructLayout(LayoutKind.Sequential)]

@@ -1,4 +1,5 @@
-﻿using MageEditor.GameDev;
+﻿using MageEditor.Content;
+using MageEditor.GameDev;
 using MageEditor.GameProject;
 using System;
 using System.Collections.Generic;
@@ -39,6 +40,12 @@ namespace MageEditor.Editors
         private void OnNewScript_Button_Click(object sender, RoutedEventArgs e)
         {
             new NewScriptDialog().ShowDialog(); // since we don't need to cancel it ourselves or wait for result of it
+        }
+
+        private void OnCreatePrimitiveMesh_Button_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new PrimitiveMeshDialog();
+            dlg.ShowDialog();
         }
     }
 }

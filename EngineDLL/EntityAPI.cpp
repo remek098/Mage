@@ -34,7 +34,7 @@ namespace {
 
     struct script_component {
         script::detail::script_creator_fn_ptr script_creator;
-
+        
         script::init_info to_init_info() {
             script::init_info info{};
             info.script_creator = script_creator;

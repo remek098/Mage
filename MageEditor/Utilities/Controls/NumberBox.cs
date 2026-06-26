@@ -21,6 +21,18 @@ namespace MageEditor.Utilities.Controls
         private bool _valueChanged = false;
         private double _sensitivity = 0.01;
 
+        // when we attach handlers for this event, it will call these methods
+        // acts pretty much like get;set;
+        public event RoutedEventHandler ValueChanged
+        {
+            add => AddHandler(ValueChangedEvent, value);
+            remove => RemoveHandler(ValueChangedEvent, value);
+        }
+
+        public static readonly RoutedEvent ValueChangedEvent =
+            EventManager.RegisterRoutedEvent(nameof(ValueChanged), RoutingStrategy.Bubble,
+                typeof(RoutedEventHandler), typeof(NumberBox));
+
         public double SensitivityMultiplier
         {
             get => (double)GetValue(SensitivityMultiplierProperty);
@@ -45,7 +57,15 @@ namespace MageEditor.Utilities.Controls
             nameof(Value), 
             typeof(string), 
             typeof(NumberBox),
-            new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault));
+            new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault,
+            new PropertyChangedCallback(OnValueChanged)));
+
+        private static void OnValueChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            // now everything that has an event handler attached to this event (+=) will receive notification
+            // so basically NumberBox now has a ValueChanged event that we can use
+            (d as NumberBox)?.RaiseEvent(new RoutedEventArgs(ValueChangedEvent));
+        }
 
         public override void OnApplyTemplate()
         {
@@ -74,7 +94,7 @@ namespace MageEditor.Utilities.Controls
                     else _sensitivity = 0.01;
                     
                     var newValue = _originalValue + (diff * _sensitivity * SensitivityMultiplier);
-                    Value = newValue.ToString("0.#####");
+                    Value = newValue.ToString("G5");
                     _valueChanged = true;
                 }
             }
