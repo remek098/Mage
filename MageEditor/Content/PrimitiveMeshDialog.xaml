@@ -114,7 +114,7 @@
                            HorizontalAlignment="Left" Padding="5,0" 
                            Foreground="{StaticResource Editor.FontBrush}"/>
                 </Grid>
-                <Button Content="Save" Width="96" Margin="5,0"/>
+                <Button Content="Save" Width="96" Margin="5,0" Click="OnSave_Button_Click"/>
 
             </StackPanel>
             
@@ -187,8 +187,7 @@
                 <Grid Margin="0,5">
                     <Border CornerRadius="3" BorderThickness="1" BorderBrush="{StaticResource Editor.Window.GrayBrush6}"
                             Background="{StaticResource Editor.Window.GrayBrush4}" Margin="5">
-                        <StackPanel Margin="5,15,5,5">
-                            <DockPanel Margin="5">
+                            <DockPanel Margin="5,15,5,5">
                                 <TextBlock Text="Angle" Width="40" DockPanel.Dock="Left" VerticalAlignment="Center"/>
                                 <!--You can set the value by typing in textbox or by using slider -->
                                 <TextBox Text="{Binding Path=Value, ElementName=angleSliderUvSphere}" Width="30" DockPanel.Dock="Right"/>
@@ -196,14 +195,13 @@
                                         IsSnapToTickEnabled="True" x:Name="angleSliderUvSphere"
                                         ValueChanged="OnSlider_ValueChanged"/>
                             </DockPanel>
-                        </StackPanel>
                     </Border>
                     <Label Content="Smoothing" VerticalAlignment="Top"
                             HorizontalAlignment="Left" Padding="5,0" 
                             Foreground="{StaticResource Editor.FontBrush}"/>
                 </Grid>
 
-                <Button Content="Save" Width="96" Margin="5,0"/>
+                <Button Content="Save" Width="96" Margin="5,0" Click="OnSave_Button_Click"/>
 
             </StackPanel>
             <!--ICOSPHERE SETTINGS-->

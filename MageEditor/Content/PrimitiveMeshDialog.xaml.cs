@@ -1,9 +1,12 @@
 ﻿using MageEditor.ContentToolsAPIStructs;
 using MageEditor.DllWrappers;
 using MageEditor.Editors;
+using MageEditor.GameProject;
 using MageEditor.Utilities.Controls;
+using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -118,10 +121,10 @@ namespace MageEditor.Content
             }
         }
 
-        static PrimitiveMeshDialog()
+		static PrimitiveMeshDialog()
         {
-            LoadTextures();
-        }
+			LoadTextures();
+		}
 
         public PrimitiveMeshDialog()
         {
@@ -141,6 +144,23 @@ namespace MageEditor.Content
             foreach(var mesh in ge.MeshRenderer.Meshes)
             {
                 mesh.Diffuse = brush;
+            }
+        }
+
+        private void OnSave_Button_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new SaveFileDialog()
+            {
+                InitialDirectory = Project.Current?.ContentPath,
+                Filter = "Asset file (*.asset)|*.asset"
+            };
+
+            if(dlg.ShowDialog() == true)
+            {
+                Debug.Assert(!string.IsNullOrEmpty(dlg.FileName));
+                var asset = (DataContext as IAssetEditor)?.Asset;
+                Debug.Assert(asset != null);
+                asset.Save(dlg.FileName);
             }
         }
     }

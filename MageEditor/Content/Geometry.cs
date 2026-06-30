@@ -8,6 +8,9 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 
 namespace MageEditor.Content
 {
@@ -240,6 +243,16 @@ namespace MageEditor.Content
             ImportEmbededTextures = true;
             ImportAnimations = true;
         }
+
+        public void ToBinary(BinaryWriter writer)
+        {
+            writer.Write(CalculateNormals);
+            writer.Write(CalculateTangents);
+            writer.Write(SmoothingAngle);
+            writer.Write(ReverseHandedness);
+            writer.Write(ImportEmbededTextures);
+            writer.Write(ImportAnimations);
+        }
     }
 
     class Geometry : Asset
@@ -355,6 +368,113 @@ namespace MageEditor.Content
                 lodList.Add(lod);
             }
             lod.Meshes.Add(mesh);
+        }
+
+        public override IEnumerable<string> Save(string file)
+        {
+            // LODGroup represents a collection of Mesh assets that we have under our Geometry asset class.
+            Debug.Assert(_lodGroups.Any());
+            var savedFiles = new List<string>();
+            if(!_lodGroups.Any()) return savedFiles; // return empty list if we don't have any Meshes to save
+
+            // path where the file resides
+            var path = Path.GetDirectoryName(file) + Path.DirectorySeparatorChar;
+            var fileName = Path.GetFileNameWithoutExtension(file);
+
+            try {
+                // save meshes/assets for each LODGroup 1 by 1
+                foreach(var lod_group in _lodGroups) {
+                    Debug.Assert(lod_group.LODs.Any());
+                    // use the name of the most detailed LOD for file name
+                    var meshFileName = ContentHelper.SanitizeFileName(path + fileName + "_" + lod_group.LODs[0].Name + AssetFileExtension);
+                    // NOTE: we have to make a diffrent id for each newly created asset file.
+                    Guid = Guid.NewGuid();
+                    byte[]? data = null;
+                    using(var writer = new BinaryWriter(new MemoryStream())) {
+                        writer.Write(lod_group.Name); // name of object
+                        writer.Write(lod_group.LODs.Count); // number of submeshes that are contained in this object
+                        var hashes = new List<byte>();
+                        foreach(var lod in lod_group.LODs) {
+                            LODToBinary(lod, writer, out var hash);
+                            if(hash != null) hashes.AddRange(hash);
+                        }
+
+                        Hash = ContentHelper.ComputeHash(hashes.ToArray());
+                        data = (writer.BaseStream as MemoryStream)?.ToArray();
+                        Icon = GenerateIcon(lod_group.LODs[0]);
+                    }
+
+                    Debug.Assert(data?.Length > 0); // check that we actually wrote something KEKW
+                    using(var writer = new BinaryWriter(File.Open(meshFileName, FileMode.Create, FileAccess.Write))) {
+                        WriteAssetFileHeader(writer);
+                        // save import settings with the geometry asset as well. -> so that we know for future
+                        ImportSettings.ToBinary(writer);
+                        writer.Write(data.Length);
+                        writer.Write(data);
+                    }
+
+                    savedFiles.Add(meshFileName);
+                }
+            }
+            catch (Exception ex) {
+                Debug.WriteLine(ex.Message);
+                Logger.Log(MessageType.Error, $"Failed to save geometry to {file}");
+            }
+            return savedFiles;
+        }
+
+        
+
+        private void LODToBinary(MeshLOD lod, BinaryWriter writer, out byte[]? hash)
+        {
+            writer.Write(lod.Name);
+            writer.Write(lod.LODTreshold);
+            writer.Write(lod.Meshes.Count);
+
+            // we want to calculate a hash for mesh data only, not the names for LODs and other things
+            var meshDataBeginWriterPosition = writer.BaseStream.Position;
+
+            // save anything we need to know about the mesh -> we calculate hash for this data only,
+            // because if anything is diffrent, than it means that our mesh is diffrent
+            // we can have same mesh with diffrent names, but that shouldn't matter, since it's still a duplicate.
+            foreach(var mesh in lod.Meshes) {
+                writer.Write(mesh.VertexSize);
+                writer.Write(mesh.VertexCount);
+                writer.Write(mesh.IndexSize);
+                writer.Write(mesh.IndexCount);
+                writer.Write(mesh.Vertices);
+                writer.Write(mesh.Indices);
+            }
+            var meshDataSize = writer.BaseStream.Position - meshDataBeginWriterPosition;
+            Debug.Assert(meshDataSize > 0); // number of bytes we've written for meshes
+
+            var buffer = (writer.BaseStream as MemoryStream)?.ToArray();
+            hash = ContentHelper.ComputeHash(buffer, (int)meshDataBeginWriterPosition, (int) meshDataSize);
+        }
+
+        private byte[] GenerateIcon(MeshLOD lod)
+        {
+            var width = 90 * 4; // we will render 4x wider image and then downsample it (softer edges for rendered object)
+            BitmapSource? bmp = null;
+
+            // this makes sure that it's executed on UI thread
+            // NOTE: it's not good practice to use WPF control (view) in the ViewModel.
+            //       But we have to make exception here, for as long as we don't have graphics renderer that we can use 
+            //       for screenshots.
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                bmp = Editors.GeometryView.RenderToBitmap(new Editors.MeshRenderer(lod, null), width, width);
+                bmp = new TransformedBitmap(bmp, new ScaleTransform(0.25, 0.25, 0.5, 0.5));
+            });
+
+            using var memoryStream = new MemoryStream();
+            memoryStream.SetLength(0);
+            // encode a bitmap we just rendered into .png format
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(bmp));
+            encoder.Save(memoryStream);
+
+            return memoryStream.ToArray(); // return a stream that contains out .png image
         }
 
         public Geometry() : base(AssetType.Mesh)

@@ -167,7 +167,7 @@ namespace MageEditor.Editors
         }
 
         // each time we create new PrimitiveMesh, a new Renderer is also created, but we want to take over old camera position, direction
-        public MeshRenderer(MeshLOD? lod, MeshRenderer old)
+        public MeshRenderer(MeshLOD? lod, MeshRenderer? old)
         {
             Debug.Assert(lod?.Meshes.Any() == true);
             // calculate vertex size minus the position and normal vectors.
