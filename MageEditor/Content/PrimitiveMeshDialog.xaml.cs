@@ -44,6 +44,7 @@ namespace MageEditor.Content
 
             var primitiveType = (PrimitiveMeshType)primitiveTypeComboBox.SelectedItem;
             var info = new PrimitiveInitInfo() { Type = primitiveType };
+            var smoothingAngle = 0;
 
             switch (primitiveType)
             {
@@ -55,12 +56,20 @@ namespace MageEditor.Content
                         // imagine basic unit is 1m, therefore we want 1mm by 1mm as the smallest possible plane
                         info.Size.X = ParseValueToFloat(widthScalarBoxPlane, 0.001f);
                         info.Size.Z = ParseValueToFloat(lengthScalarBoxPlane, 0.001f);
-                        break;
                     }
+                    break;
                 case PrimitiveMeshType.Cube:
                     return;
                 case PrimitiveMeshType.UvSphere:
-                    return;
+                    {
+                        info.SegmentX = (int)xSliderUvSphere.Value;
+                        info.SegmentY = (int)ySliderUvSphere.Value;
+                        info.Size.X = ParseValueToFloat(xScalarBoxUvSphere, 0.001f);
+                        info.Size.Y = ParseValueToFloat(yScalarBoxUvSphere, 0.001f);
+                        info.Size.Z = ParseValueToFloat(zScalarBoxUvSphere, 0.001f);
+                        smoothingAngle = (int)angleSliderUvSphere.Value;
+                    }
+                    break;
                 case PrimitiveMeshType.IcoSphere:
                     return;
                 case PrimitiveMeshType.Cylinder:
@@ -73,6 +82,7 @@ namespace MageEditor.Content
             }
 
             var geometry = new Geometry();
+            geometry.ImportSettings.SmoothingAngle = smoothingAngle;
             ContentToolsAPI.CreatePrimitiveMesh(geometry, info);
             // we got GeometryEditor in PrimitiveMeshDialog's Window.DataContext
             (DataContext as GeometryEditor)?.SetAsset(geometry); // render this geometry using WPF's 3d renderer
@@ -84,6 +94,8 @@ namespace MageEditor.Content
             var uris = new List<Uri>
             {
                 new Uri("pack://application:,,,/Resources/PrimitiveMeshView/PlaneTexture.png"),
+                new Uri("pack://application:,,,/Resources/PrimitiveMeshView/PlaneTexture.png"),
+                new Uri("pack://application:,,,/Resources/PrimitiveMeshView/CheckerMap.png"),
             };
 
             _textures.Clear();

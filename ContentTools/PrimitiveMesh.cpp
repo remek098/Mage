@@ -4,6 +4,7 @@
 namespace mage::tools {
     namespace {
         using namespace math;
+        using namespace DirectX;
         using primitive_mesh_creator = void(*)(scene&, const primitive_mesh_init_info& info);
 
 
@@ -138,6 +139,157 @@ namespace mage::tools {
             return m;
         }
 
+        mesh create_uv_sphere(const primitive_mesh_init_info& info) {
+            // how many vertices along phi direction (vertical lines going in horizontal direction)
+            // minimum 3, because otherwise we would have flat shape
+            const u32 phi_count = clamp(info.segments[axis::x], 3u, 64u);
+
+            // number of circle segments in vertical direction
+            const u32 theta_count = clamp(info.segments[axis::y], 2u, 64u);
+            // so at phi_count = 3, theta_count = 2, we would have double cone shape
+
+            const f32 theta_step = pi / theta_count;
+            const f32 phi_step = two_pi / phi_count;
+            const u32 num_vertices = 2 + phi_count * (theta_count - 1);
+
+            mesh m{};
+            m.name = "uv_sphere";
+            m.positions.resize(num_vertices);
+
+            // add top vertex
+            u32 counter = 0;
+            m.positions[counter++] = { 0.f, info.size.y, 0.f };
+            // mid section
+            // outer loop -> vertical direction
+            for ( u32 j = 1; j <= (theta_count - 1); ++j ) {
+                const f32 theta = j * theta_step;
+                // inner loop -> goes around a circle
+                for ( u32 i = 0; i < phi_count; ++i ) {
+                    const f32 phi = i * phi_step;
+                    // use spherical coords to get cartesian coords (right-handed coordinate system (therefore direction of z is reversed))
+                    m.positions[counter++] = {
+                         info.size.x * XMScalarSin(theta) * XMScalarCos(phi),
+                         info.size.y * XMScalarCos(theta),
+                        -info.size.z * XMScalarSin(theta) * XMScalarSin(phi)
+                    };
+                }
+            }
+
+            // add the bottom vertex
+            m.positions[counter++] = { 0.f, -info.size.y, 0.f };
+            assert(counter == num_vertices);
+
+            // if uv_sphere is not a double-cone (phi_count > 3 and theta_count > 2), then
+            // top and bottom caps have as many triangles as there are vertices on the first ring -> 3 indices for each triangle
+            // mid section -> each face is a quad -> 6 indices for each quad
+            // 2*3*phi_count -> top and bottom caps together
+            // 2 * 3 * phi_count * (theta_count - 2) -> mid section -> theta_count-2 because we need to subtract top and bottom cap segments
+            const u32 num_indices = 2 * 3 * phi_count + 2 * 3 * phi_count * (theta_count - 2);
+            counter = 0;
+            m.raw_indices.resize(num_indices);
+            
+            utl::vector<vec2> uvs(num_indices);
+            const f32 inv_theta_count = 1.f / theta_count;
+            const f32 inv_phi_count = 1.f / phi_count;
+
+            // indices for top cap, connecting north pole to the first ring
+            for ( u32 i = 0; i < phi_count - 1; ++i ) {
+                // triangles in a top row of UV map
+                uvs[counter] = { (2 * i + 1) * 0.5f * inv_phi_count, 1.f }; // top vertex is halfway between i and i+1 vertex; v is always 1 (top of UV map)
+                // go around circle and connect top vertex with the next 2 vertices located at first ring
+                m.raw_indices[counter++] = 0;
+                uvs[counter] = { i * inv_phi_count, 1.f - inv_theta_count };
+                m.raw_indices[counter++] = i+1;
+                uvs[counter] = { (i + 1) * inv_phi_count, 1.f - inv_theta_count };
+                m.raw_indices[counter++] = i+2;
+            }
+
+            // add last triangle in a top cap
+            uvs[counter] = { 1.f - 0.5f * inv_phi_count, 1.f };
+            m.raw_indices[counter++] = 0; // first vertex at the top
+            uvs[counter] = { 1.f - inv_phi_count, 1.f - inv_theta_count};
+            m.raw_indices[counter++] = phi_count; // last vertex in a ring
+            uvs[counter] = { 1.f, 1.f - inv_theta_count };
+            m.raw_indices[counter++] = 1; // first vertex in the first/top ring
+
+            // indices for section between the top and bottom rings
+            for ( u32 j = 0; j < (theta_count - 2); ++j ) {
+                for ( u32 i = 0; i < (phi_count - 1); ++i ) {
+                    // go around circle and calculate indices for each corner of the quad
+                    // kinda same as done with plane -> calculate indices and then connect them into triangles
+                    // remember we already added index to array of indices -> therefore we must start at 1
+                    const u32 index[4]{
+                        1 + i + j * phi_count,
+                        1 + i + (j + 1) * phi_count,
+                        1 + (i + 1) + (j + 1) * phi_count,
+                        1 + (i + 1) + j * phi_count
+                    }; // going counter-clockwise from (i,j) -> (i,j+1) -> (i+1,j+1) -> (i+1,j) -> (i,j)
+
+
+                    uvs[counter] = { i * inv_phi_count, 1.f - (j + 1) * inv_theta_count };
+                    m.raw_indices[counter++] = index[0];
+                    uvs[counter] = { i * inv_phi_count, 1.f - (j + 2) * inv_theta_count };
+                    m.raw_indices[counter++] = index[1];
+                    uvs[counter] = { (i + 1) * inv_phi_count, 1.f - (j + 2) * inv_theta_count };
+                    m.raw_indices[counter++] = index[2];
+
+                    uvs[counter] = { i * inv_phi_count, 1.f - (j + 1) * inv_theta_count };
+                    m.raw_indices[counter++] = index[0];
+                    uvs[counter] = { (i + 1) * inv_phi_count, 1.f - (j + 2) * inv_theta_count };
+                    m.raw_indices[counter++] = index[2];
+                    uvs[counter] = { (i + 1) * inv_phi_count, 1.f - (j + 1) * inv_theta_count };
+                    m.raw_indices[counter++] = index[3];
+                }
+
+                const u32 index[4]{
+                    phi_count + j * phi_count,
+                    phi_count + (j + 1) * phi_count,
+                    1 + (j + 1) * phi_count,
+                    1 + j * phi_count
+                }; // 4 corners of each quad for each segment
+                uvs[counter] = { 1.f - inv_phi_count, 1.f - (j + 1) * inv_theta_count };
+                m.raw_indices[counter++] = index[0];
+                uvs[counter] = { 1.f - inv_phi_count, 1.f - (j + 2) * inv_theta_count };
+                m.raw_indices[counter++] = index[1];
+                uvs[counter] = { 1.f, 1.f - (j + 2) * inv_theta_count };
+                m.raw_indices[counter++] = index[2];
+
+                uvs[counter] = { 1.f - inv_phi_count, 1.f - (j + 1) * inv_theta_count };
+                m.raw_indices[counter++] = index[0];
+                uvs[counter] = { 1.f, 1.f - (j + 2) * inv_theta_count };
+                m.raw_indices[counter++] = index[2];
+                uvs[counter] = { 1.f, 1.f - (j + 1) * inv_theta_count };
+                m.raw_indices[counter++] = index[3];
+            }
+
+            // indices for bottom cap, connecting south pole to the last ring
+            const u32 south_pole_index = (u32)m.positions.size() - 1;
+            for ( u32 i = 0; i < (phi_count - 1); ++i ) {
+                // connect last vertex with the vertices next to it (those laying at most south/bottom ring)
+                uvs[counter] = { (2 * i + 1) * 0.5f * inv_phi_count, 0.f }; // v=0 at the bottom of UV map
+                m.raw_indices[counter++] = south_pole_index;
+                uvs[counter] = { (i + 1) * inv_phi_count, inv_theta_count };
+                m.raw_indices[counter++] = south_pole_index - phi_count + i + 1; // we're rotated 180 degrees, winding of triangles goes other way around
+                uvs[counter] = { i * inv_phi_count, inv_theta_count };
+                m.raw_indices[counter++] = south_pole_index - phi_count + i;
+            }
+
+            uvs[counter] = { 1.f - 0.5f * inv_phi_count, 0.f };
+            m.raw_indices[counter++] = south_pole_index;
+            uvs[counter] = { 1.f, inv_phi_count };
+            m.raw_indices[counter++] = south_pole_index - phi_count;
+            uvs[counter] = { 1.f - inv_theta_count, inv_phi_count };
+            m.raw_indices[counter++] = south_pole_index - 1;
+
+            assert(counter == num_indices);
+
+            /*m.uv_sets.resize(1);
+            m.uv_sets[0].resize(m.raw_indices.size());*/
+            m.uv_sets.emplace_back(uvs);
+
+            return m;
+        }
+
         void create_plane(scene& scene, const primitive_mesh_init_info& info) {
             lod_group lod{};
             lod.name = "plane";
@@ -149,6 +301,11 @@ namespace mage::tools {
         }
 
         void create_uv_sphere(scene& scene, const primitive_mesh_init_info& info) {
+            lod_group lod{};
+            lod.name = "uv_sphere";
+            lod.meshes.emplace_back(create_uv_sphere(info));
+            scene.lod_groups.emplace_back(lod);
+
         }
 
         void create_ico_sphere(scene& scene, const primitive_mesh_init_info& info) {
