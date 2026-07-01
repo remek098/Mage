@@ -68,3 +68,4 @@ public:
             platform::remove_window(g_windows[i].get_id());
     }
 };
+

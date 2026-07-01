@@ -17,4 +17,6 @@ namespace mage::gfx {
 
     bool initialize(gfx_platform platform);
     void shutdown();
+
+    void render();
 } // namespace mage::gfx
