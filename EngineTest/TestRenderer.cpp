@@ -1,8 +1,9 @@
-#include "TestRenderer.h"
 #include "..\Platform\PlatformTypes.h"
 #include "..\Platform\Platform.h"
 #include "..\Graphics\Renderer.h"
+#include "TestRenderer.h"
 
+#if TEST_RENDERER
 using namespace mage;
 
 gfx::render_surface g_surfaces[4];
@@ -71,6 +72,7 @@ bool EngineTest::initialize() {
 
 void EngineTest::run() {
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    gfx::render();
 }
 
 void EngineTest::shutdown() {
@@ -79,3 +81,5 @@ void EngineTest::shutdown() {
 
     gfx::shutdown();
 }
+
+#endif // TEST_RENDERER

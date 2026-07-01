@@ -26,4 +26,8 @@ namespace mage::gfx {
     void shutdown() {
         gfx_interface.shutdown();
     }
+
+    void render() {
+        gfx_interface.render();
+    }
 } // namespace mage::gfx
