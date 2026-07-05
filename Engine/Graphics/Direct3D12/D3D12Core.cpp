@@ -1,5 +1,6 @@
 #include "D3D12Core.h"
 #include "D3D12Resources.h"
+#include "D3D12Surface.h"
 
 using namespace Microsoft::WRL;
 
@@ -124,7 +125,7 @@ namespace mage::gfx::d3d12::core {
                 }
             }
 
-            constexpr ID3D12CommandQueue* const command_queue() const { return _cmd_queue; }
+            constexpr ID3D12CommandQueue* const get_command_queue() const { return _cmd_queue; }
             constexpr ID3D12GraphicsCommandList10* const command_list() const { return _cmd_list; }
             constexpr u32 frame_index() const { return _frame_index; }
 
@@ -165,6 +166,7 @@ namespace mage::gfx::d3d12::core {
         ID3D12Device14*                     d3d_main_device = nullptr;
         IDXGIFactory7*                      dxgi_factory = nullptr;
         d3d12_command                       gfx_command;
+        utl::vector<d3d12_surface>          surfaces;
 
         // descriptor heaps
         descriptor_heap                     rtv_desc_heap{ D3D12_DESCRIPTOR_HEAP_TYPE_RTV };
@@ -177,6 +179,8 @@ namespace mage::gfx::d3d12::core {
         u32                                 deferred_releases_flag[frame_buffer_count];
         std::mutex                          deferred_releases_mutex{};
 
+
+        constexpr DXGI_FORMAT render_target_format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
         constexpr D3D_FEATURE_LEVEL minimum_feature_level{ D3D_FEATURE_LEVEL_11_0 };
 
         bool failed_init() {
@@ -253,7 +257,7 @@ namespace mage::gfx::d3d12::core {
 
     namespace detail {
         void deferred_release(IUnknown* resource) {
-            const u32 frame_index = current_frame_index();
+            const u32 frame_index = get_current_frame_index();
             // locking the function because we access deferred_releases, which will also be modified in process_deferred_releases
             std::lock_guard lock{ deferred_releases_mutex };
             deferred_releases[frame_index].push_back(resource);
@@ -324,7 +328,7 @@ namespace mage::gfx::d3d12::core {
         // but we got to make sure that we cannot have non-trivial types that allocate memory during initialization (e.g. utl::vector)
         // otherwise memory leaks inbound.
         new (&gfx_command) d3d12_command(d3d_main_device, D3D12_COMMAND_LIST_TYPE_DIRECT);
-        if (!gfx_command.command_queue()) return failed_init();
+        if (!gfx_command.get_command_queue()) return failed_init();
 
         NAME_D3D12_OBJECT(d3d_main_device, L"Main D3D12 Device");
         NAME_D3D12_OBJECT(rtv_desc_heap.heap(), L"RTV Descriptor Heap");
@@ -375,29 +379,67 @@ namespace mage::gfx::d3d12::core {
         release(d3d_main_device);
     }
 
-    void render() {
+
+    ID3D12Device* const get_device() { return d3d_main_device; }
+
+    descriptor_heap& rtv_heap() {return rtv_desc_heap;}
+    descriptor_heap& dsv_heap() {return dsv_desc_heap;}
+    descriptor_heap& srv_heap() {return srv_desc_heap;}
+    descriptor_heap& uav_heap() { return uav_desc_heap; }
+
+    DXGI_FORMAT default_render_target_format() { return render_target_format; }
+
+    u32 get_current_frame_index() { return gfx_command.frame_index(); }
+
+    void set_deferred_releases_flag() { deferred_releases_flag[get_current_frame_index()] = 1; }
+
+
+
+    surface create_surface(platform::window window) {
+        // NOTE: not the best solution, will have to implement free-list and use it there.
+        surfaces.emplace_back(window);
+        surface_id id{ (u32)surfaces.size() - 1 };
+        surfaces[id].create_swapchain(dxgi_factory, gfx_command.get_command_queue(), render_target_format);
+        
+        return surface{ id };
+    }
+    void remove_surface(surface_id id) {
+        gfx_command.flush();
+        // TODO: will have to wait till we have a free-list container. (to do surfaces[id] = d3d12_surface{})
+        //surfaces[id].release();
+        surfaces[id].~d3d12_surface();
+    }
+    void resize_surface(surface_id id, u32 width, u32 height) {
+        gfx_command.flush();
+        surfaces[id].resize();
+
+    }
+    u32 surface_width(surface_id id) {
+        return surfaces[id].width();
+    }
+    u32 surface_height(surface_id id) {
+        return surfaces[id].height();
+    }
+    void render_surface(surface_id id) {
         // wait for the GPU to finish with the command allcator and reset the allocator once the GPU is done with it.
         // This frees the memory that was used to store commands.
         gfx_command.begin_frame();
         ID3D12GraphicsCommandList10* cmd_list = gfx_command.command_list();
 
-        const u32 frame_index = current_frame_index();
+        const u32 frame_index = get_current_frame_index();
         if (deferred_releases_flag[frame_index]) {
             process_deferred_releases(frame_index);
         }
 
+        const d3d12_surface& surface = surfaces[id];
+
+        // presenting swapchain buffer happens in lockstep with frame buffers.
+        surface.present();
         // record commands
         // ...
 
         // done recording commands. Now execute commands, signal and increment the fence value for next frame.
         gfx_command.end_frame();
     }
-
-    ID3D12Device* const device() { return d3d_main_device; }
-
-    u32 current_frame_index() { return gfx_command.frame_index(); }
-
-    void set_deferred_releases_flag() { deferred_releases_flag[current_frame_index()] = 1; }
-
 
 } // namespace mage::gfx::d3d12::core

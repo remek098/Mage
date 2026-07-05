@@ -18,7 +18,7 @@ namespace mage::gfx::d3d12 {
 
         release(); // because this function can be used multiple times
 
-        ID3D12Device* const device = core::device();
+        ID3D12Device* const device = core::get_device();
         assert(device);
 
         D3D12_DESCRIPTOR_HEAP_DESC desc{};
@@ -27,6 +27,7 @@ namespace mage::gfx::d3d12 {
             : D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
         desc.NumDescriptors = capacity;
         desc.NodeMask = 0;
+        desc.Type = _type;
 
         HRESULT hr = S_OK;
         DXCALL( hr = device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&_heap)));
@@ -105,7 +106,7 @@ namespace mage::gfx::d3d12 {
 
         // handles can be used by multiple frames, we have to deffer this operation until these resources are no longer needed by GPU or used by 
         // any shader
-        const u32 frame_index = core::current_frame_index();
+        const u32 frame_index = core::get_current_frame_index();
         _deferred_free_indices[frame_index].push_back(index); // remember which descriptor handles should be removed later.
         core::set_deferred_releases_flag();
         handle = {};

@@ -45,11 +45,12 @@ LRESULT win_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 
 void create_render_surface(gfx::render_surface& surface, platform::window_init_info info) {
     surface.window = platform::create_window(&info);
+    surface.surface = gfx::create_surface(surface.window);
 }
 
 void destroy_render_surface(gfx::render_surface& surface) {
+    gfx::remove_surface(surface.surface.get_id());
     platform::remove_window(surface.window.get_id());
-
 }
 
 bool EngineTest::initialize() {
@@ -72,7 +73,11 @@ bool EngineTest::initialize() {
 
 void EngineTest::run() {
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    gfx::render();
+    for (u32 i = 0; i < _countof(g_surfaces); ++i) {
+        if (g_surfaces[i].surface.is_valid()) {
+            g_surfaces[i].surface.render();
+        }
+    }
 }
 
 void EngineTest::shutdown() {
