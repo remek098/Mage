@@ -1,9 +1,17 @@
 #include "D3D12Core.h"
+#include "D3D12Resources.h"
+#include "D3D12Surface.h"
 
 using namespace Microsoft::WRL;
 
 namespace mage::gfx::d3d12::core {
     namespace {
+        /// <summary>
+        /// instance of this class is allocated with placement new, beware of potential memory leaks if you don't destroy the default (in applications
+        /// memory segment on app's initialization time) instance (especially if you include non-trivial data types that need to free memory on destroy)
+        /// <para/>
+        /// -> mage::gfx::d3d12::core::gfx_command variable in anonymous namespace
+        /// </summary>
         class d3d12_command {
         public:
             d3d12_command() = default;
@@ -117,7 +125,7 @@ namespace mage::gfx::d3d12::core {
                 }
             }
 
-            constexpr ID3D12CommandQueue* const command_queue() const { return _cmd_queue; }
+            constexpr ID3D12CommandQueue* const get_command_queue() const { return _cmd_queue; }
             constexpr ID3D12GraphicsCommandList10* const command_list() const { return _cmd_list; }
             constexpr u32 frame_index() const { return _frame_index; }
 
@@ -141,6 +149,7 @@ namespace mage::gfx::d3d12::core {
 
                 void release() {
                     core::release(cmd_allocator);
+                    fence_value = 0;
                 }
             };
 
@@ -157,8 +166,21 @@ namespace mage::gfx::d3d12::core {
         ID3D12Device14*                     d3d_main_device = nullptr;
         IDXGIFactory7*                      dxgi_factory = nullptr;
         d3d12_command                       gfx_command;
+        utl::vector<d3d12_surface>          surfaces;
+
+        // descriptor heaps
+        descriptor_heap                     rtv_desc_heap{ D3D12_DESCRIPTOR_HEAP_TYPE_RTV };
+        descriptor_heap                     dsv_desc_heap{ D3D12_DESCRIPTOR_HEAP_TYPE_DSV };
+        descriptor_heap                     srv_desc_heap{ D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV }; // that one is shader visible
+        descriptor_heap                     uav_desc_heap{ D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV }; // that will not be shader visible
 
 
+        utl::vector<IUnknown*>              deferred_releases[frame_buffer_count]; // resources that have to be released for each frame buffer.
+        u32                                 deferred_releases_flag[frame_buffer_count];
+        std::mutex                          deferred_releases_mutex{};
+
+
+        constexpr DXGI_FORMAT render_target_format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
         constexpr D3D_FEATURE_LEVEL minimum_feature_level{ D3D_FEATURE_LEVEL_11_0 };
 
         bool failed_init() {
@@ -206,9 +228,43 @@ namespace mage::gfx::d3d12::core {
                                                sizeof(D3D12_FEATURE_DATA_FEATURE_LEVELS)));
             return feature_level_info.MaxSupportedFeatureLevel;
         }
+
+        void __declspec(noinline) process_deferred_releases(u32 frame_index) {
+            // noinline because we don't want bunch of instructions that are rarely executed in render() function 
+            // so instead of jumping across bunch of instructions (that are loaded into cache), we just jump over a call instruction instead
+
+            // make sure we're thread-safe -> object is unlocked when lock goes out of scope (so after function execution)
+            std::lock_guard lock{ deferred_releases_mutex };
+
+            // NOTE: we clear this flag at the beginning. If it'd be cleared at the end, then we might overwrite some other thread that was trying 
+            //       to set it. It's fine if overwriting happens before processing items.
+            deferred_releases_flag[frame_index] = 0; // clear flag for this frame
+
+            rtv_desc_heap.process_deferred_free(frame_index);
+            dsv_desc_heap.process_deferred_free(frame_index);
+            srv_desc_heap.process_deferred_free(frame_index);
+            uav_desc_heap.process_deferred_free(frame_index);
+            
+            // TODO: release pending resources -> for this frame
+            utl::vector<IUnknown*>& resources{ deferred_releases[frame_index] };
+            if (!resources.empty()) {
+                for (auto& resource : resources) release(resource);
+                resources.clear();
+            }
+
+        }
     } // anonymous namespace
 
-
+    namespace detail {
+        void deferred_release(IUnknown* resource) {
+            const u32 frame_index = get_current_frame_index();
+            // locking the function because we access deferred_releases, which will also be modified in process_deferred_releases
+            std::lock_guard lock{ deferred_releases_mutex };
+            deferred_releases[frame_index].push_back(resource);
+            set_deferred_releases_flag(); // makes sure that for this frame thanks to process_deferred_releases() (called in render() each frame)
+                                          // resources will be released at proper timing
+        }
+    } // namespace detail
 
     bool initialize() {
         // 2) determine what is the maximum feature level that is supported.
@@ -220,8 +276,12 @@ namespace mage::gfx::d3d12::core {
 #ifdef _DEBUG
         {
             ComPtr<ID3D12Debug6> debug_interface;
-            DXCALL(D3D12GetDebugInterface(IID_PPV_ARGS(&debug_interface)));
-            debug_interface->EnableDebugLayer();
+            if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debug_interface)))) {
+                debug_interface->EnableDebugLayer();
+            }
+            else {
+                OutputDebugStringA("Warning: D3D12 Debug interface is not available. Verify that Graphics Tools optional feature is installed on this system.\n");
+            }
             dxgi_factory_flags |= DXGI_CREATE_FACTORY_DEBUG;
         }
 #endif // _DEBUG
@@ -242,13 +302,6 @@ namespace mage::gfx::d3d12::core {
         DXCALL(hr = D3D12CreateDevice(main_adapter.Get(), max_feature_level, IID_PPV_ARGS(&d3d_main_device)));
         if (FAILED(hr)) return failed_init();
 
-        // NOTE: using placement new, because we construct in place and we don't want to ever be able to have it copied or moved
-        // because our instances contain naked pointers, and we don't want that type of mess, oh no no....
-        new (&gfx_command) d3d12_command(d3d_main_device, D3D12_COMMAND_LIST_TYPE_DIRECT);
-        if (!gfx_command.command_queue()) return failed_init();
-
-        NAME_D3D12_OBJECT(d3d_main_device, L"Main D3D12 Device");
-
 #ifdef _DEBUG
         {
             ComPtr<ID3D12InfoQueue1> info_queue;
@@ -261,12 +314,50 @@ namespace mage::gfx::d3d12::core {
         }
 #endif // _DEBUG
 
+        // initialize descriptor heaps
+        bool result = true;
+        result &= rtv_desc_heap.init(512, false);
+        result &= dsv_desc_heap.init(512, false);
+        result &= srv_desc_heap.init(4096, true); // ofc in game number of textures and other things would be much bigger than this.
+        result &= uav_desc_heap.init(512, false);
+        if (!result) return failed_init();
+
+        // NOTE: using placement new, because we construct in place and we don't want to ever be able to have it copied or moved
+        // because our instances contain naked pointers, and we don't want that type of mess, oh no no....
+        // basically placement new overrides everything that was already in place that has been reserved in data segment of the application.
+        // but we got to make sure that we cannot have non-trivial types that allocate memory during initialization (e.g. utl::vector)
+        // otherwise memory leaks inbound.
+        new (&gfx_command) d3d12_command(d3d_main_device, D3D12_COMMAND_LIST_TYPE_DIRECT);
+        if (!gfx_command.get_command_queue()) return failed_init();
+
+        NAME_D3D12_OBJECT(d3d_main_device, L"Main D3D12 Device");
+        NAME_D3D12_OBJECT(rtv_desc_heap.heap(), L"RTV Descriptor Heap");
+        NAME_D3D12_OBJECT(dsv_desc_heap.heap(), L"DSV Descriptor Heap");
+        NAME_D3D12_OBJECT(srv_desc_heap.heap(), L"SRV Descriptor Heap");
+        NAME_D3D12_OBJECT(uav_desc_heap.heap(), L"UAV Descriptor Heap");
+
         return true;
     }
 
     void shutdown() {
         gfx_command.release();
+
+        // NOTE: we don't call process_deferred_releases at the end because some resources (such as swapchains)
+        //       can't be released before their depending resources are released.
+        for (u32 i = 0; i < frame_buffer_count; ++i) {
+            process_deferred_releases(i);
+        }
+
         release(dxgi_factory);
+
+        rtv_desc_heap.release();
+        dsv_desc_heap.release();
+        srv_desc_heap.release();
+        uav_desc_heap.release();
+
+        // NOTE: some types only use deferred release for their resources during shutdown/reset/clear.
+        //       To finally release these resources, we call process_deferred_releases once more.
+        process_deferred_releases(0);
 
 #ifdef _DEBUG
         {
@@ -288,11 +379,62 @@ namespace mage::gfx::d3d12::core {
         release(d3d_main_device);
     }
 
-    void render() {
+
+    ID3D12Device* const get_device() { return d3d_main_device; }
+
+    descriptor_heap& rtv_heap() {return rtv_desc_heap;}
+    descriptor_heap& dsv_heap() {return dsv_desc_heap;}
+    descriptor_heap& srv_heap() {return srv_desc_heap;}
+    descriptor_heap& uav_heap() { return uav_desc_heap; }
+
+    DXGI_FORMAT default_render_target_format() { return render_target_format; }
+
+    u32 get_current_frame_index() { return gfx_command.frame_index(); }
+
+    void set_deferred_releases_flag() { deferred_releases_flag[get_current_frame_index()] = 1; }
+
+
+
+    surface create_surface(platform::window window) {
+        // NOTE: not the best solution, will have to implement free-list and use it there.
+        surfaces.emplace_back(window);
+        surface_id id{ (u32)surfaces.size() - 1 };
+        surfaces[id].create_swapchain(dxgi_factory, gfx_command.get_command_queue(), render_target_format);
+        
+        return surface{ id };
+    }
+    void remove_surface(surface_id id) {
+        gfx_command.flush();
+        // TODO: will have to wait till we have a free-list container. (to do surfaces[id] = d3d12_surface{})
+        //surfaces[id].release();
+        surfaces[id].~d3d12_surface();
+    }
+    void resize_surface(surface_id id, u32 width, u32 height) {
+        gfx_command.flush();
+        surfaces[id].resize();
+
+    }
+    u32 surface_width(surface_id id) {
+        return surfaces[id].width();
+    }
+    u32 surface_height(surface_id id) {
+        return surfaces[id].height();
+    }
+    void render_surface(surface_id id) {
         // wait for the GPU to finish with the command allcator and reset the allocator once the GPU is done with it.
         // This frees the memory that was used to store commands.
         gfx_command.begin_frame();
         ID3D12GraphicsCommandList10* cmd_list = gfx_command.command_list();
+
+        const u32 frame_index = get_current_frame_index();
+        if (deferred_releases_flag[frame_index]) {
+            process_deferred_releases(frame_index);
+        }
+
+        const d3d12_surface& surface = surfaces[id];
+
+        // presenting swapchain buffer happens in lockstep with frame buffers.
+        surface.present();
         // record commands
         // ...
 

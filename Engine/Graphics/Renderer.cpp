@@ -27,7 +27,29 @@ namespace mage::gfx {
         gfx_interface.shutdown();
     }
 
-    void render() {
-        gfx_interface.render();
+
+    surface create_surface(platform::window window) {
+        return gfx_interface.surface.create(window);
+    }
+
+    void remove_surface(surface_id id) {
+        assert(id::is_valid(id));
+        gfx_interface.surface.remove(id);
+    }
+    void surface::resize(u32 width, u32 height) const {
+        assert(id::is_valid(_id));
+        gfx_interface.surface.resize(_id, width, height);
+    }
+    u32 surface::width() const {
+        assert(id::is_valid(_id));
+        return gfx_interface.surface.width(_id);
+    }
+    u32 surface::height() const {
+        assert(id::is_valid(_id));
+        return gfx_interface.surface.height(_id);
+    }
+    void surface::render() const {
+        assert(id::is_valid(_id));
+        gfx_interface.surface.render(_id);
     }
 } // namespace mage::gfx
