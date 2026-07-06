@@ -7,6 +7,10 @@
 using namespace mage;
 
 gfx::render_surface g_surfaces[4];
+time_it timer{};
+
+// forward declerations
+void destroy_render_surface(gfx::render_surface& surface);
 
 LRESULT win_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
     switch (msg) {
@@ -14,8 +18,14 @@ LRESULT win_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
         {
             bool all_closed = true;
             for (u32 i = 0; i < _countof(g_surfaces); ++i) {
-                if (!g_surfaces[i].window.is_closed()) {
-                    all_closed = false;
+                if (g_surfaces[i].window.is_valid()) {
+                    if (g_surfaces[i].window.is_closed()) {
+                        destroy_render_surface(g_surfaces[i]);
+                    }
+                    else {
+                        all_closed = false;
+                    }
+
                 }
             }
             if (all_closed) {
@@ -36,6 +46,15 @@ LRESULT win_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
             }
             break;
         }
+
+        case WM_KEYDOWN:
+        {
+            if (wparam == VK_ESCAPE) {
+                PostMessage(hwnd, WM_CLOSE, 0, 0);
+                return 0;
+            }
+            break;
+        }
         default:
             break;
     }
@@ -49,8 +68,11 @@ void create_render_surface(gfx::render_surface& surface, platform::window_init_i
 }
 
 void destroy_render_surface(gfx::render_surface& surface) {
-    gfx::remove_surface(surface.surface.get_id());
-    platform::remove_window(surface.window.get_id());
+    gfx::render_surface temp = surface;
+    surface = {};
+
+    if(temp.surface.is_valid()) gfx::remove_surface(temp.surface.get_id());
+    if(temp.window.is_valid()) platform::remove_window(temp.window.get_id());
 }
 
 bool EngineTest::initialize() {
@@ -72,12 +94,14 @@ bool EngineTest::initialize() {
 }
 
 void EngineTest::run() {
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    timer.begin();
+    // std::this_thread::sleep_for(std::chrono::milliseconds(10));
     for (u32 i = 0; i < _countof(g_surfaces); ++i) {
         if (g_surfaces[i].surface.is_valid()) {
             g_surfaces[i].surface.render();
         }
     }
+    timer.end();
 }
 
 void EngineTest::shutdown() {

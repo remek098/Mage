@@ -22,11 +22,18 @@ namespace mage::gfx::d3d12 {
         assert(factory && cmd_queue);
         release();
 
+        if (SUCCEEDED(factory->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING,&_allow_tearing, sizeof(u32)))
+                      && _allow_tearing) {
+            _present_flags = DXGI_PRESENT_ALLOW_TEARING;
+        }
+
+        //_allow_tearing = _present_flags = 0;
+
         DXGI_SWAP_CHAIN_DESC1 desc{}; // using this to be able to set format as we please.
         desc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
         desc.BufferCount = frame_buffer_count;
         desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-        desc.Flags = 0;
+        desc.Flags = _allow_tearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
         desc.Format = to_non_srgb(format);
         desc.Width = _window.width();
         desc.Height = _window.height();
@@ -56,7 +63,7 @@ namespace mage::gfx::d3d12 {
 
     void d3d12_surface::present() const {
         assert(_swapchain);
-        DXCALL(_swapchain->Present(0, 0));
+        DXCALL(_swapchain->Present(0, _present_flags));
         _current_backbuffer_index = _swapchain->GetCurrentBackBufferIndex();
     }
 

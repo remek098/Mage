@@ -19,7 +19,7 @@ namespace mage::gfx::d3d12 {
         DISABLE_COPY(d3d12_surface);
         constexpr d3d12_surface(d3d12_surface&& o)
             : _swapchain{ o._swapchain }, _window{ o._window }, _current_backbuffer_index{ o._current_backbuffer_index }
-            , _viewport{ o._viewport }, _scissor_rect{ o._scissor_rect } 
+            , _viewport{ o._viewport }, _scissor_rect{ o._scissor_rect }, _allow_tearing{ o._allow_tearing }, _present_flags{ o._present_flags }
         {
             for (u32 i = 0; i < frame_buffer_count; ++i) {
                 _render_target_data[i].resource = o._render_target_data[i].resource;
@@ -73,6 +73,8 @@ namespace mage::gfx::d3d12 {
             }
             _window = o._window;
             _current_backbuffer_index = o._current_backbuffer_index;
+            _allow_tearing = o._allow_tearing;
+            _present_flags = o._present_flags;
             _viewport = o._viewport;
             _scissor_rect = o._scissor_rect;
 
@@ -88,6 +90,8 @@ namespace mage::gfx::d3d12 {
             }
             _window = {};
             _current_backbuffer_index = 0;
+            _allow_tearing = 0;
+            _present_flags = 0;
             _viewport = {};
             _scissor_rect = {};
         }
@@ -102,6 +106,8 @@ namespace mage::gfx::d3d12 {
         render_target_data          _render_target_data[frame_buffer_count]{};
         platform::window            _window{};
         mutable u32                 _current_backbuffer_index = 0;
+        u32                         _allow_tearing = 0;
+        u32                         _present_flags = 0;
         D3D12_VIEWPORT              _viewport{};
         D3D12_RECT                  _scissor_rect{};
     };
