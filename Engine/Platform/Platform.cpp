@@ -17,37 +17,37 @@ namespace mage::platform {
             bool        is_closed{ false };
         };
 
-        utl::vector<window_info> windows;
-        // -------------------------------------------------------------------------------------
-        // TODO: this part should be handled by a free-list container
-        
-        // keeps slots available after removing window from windows array (or more so indexes that are free to take)
-        utl::vector<u32> available_slots;
+        utl::free_list<window_info> windows;
+        //// -------------------------------------------------------------------------------------
+        //// TODO: this part should be handled by a free-list container
+        //
+        //// keeps slots available after removing window from windows array (or more so indexes that are free to take)
+        //utl::vector<u32> available_slots;
 
 
-        u32 add_to_windows(window_info info) {
-            u32 id = u32_invalid_id;
-            if ( available_slots.empty() ) {
-                id = (u32)windows.size();
-                windows.emplace_back(info); // add new elements if there's none yet
-            }
-            else {
-                // if there're free slots, just re-use them
-                id = available_slots.back();
-                available_slots.pop_back();
-                assert(id != u32_invalid_id);
-                windows[id] = info;
-            }
+        //u32 add_to_windows(window_info info) {
+        //    u32 id = u32_invalid_id;
+        //    if ( available_slots.empty() ) {
+        //        id = (u32)windows.size();
+        //        windows.emplace_back(info); // add new elements if there's none yet
+        //    }
+        //    else {
+        //        // if there're free slots, just re-use them
+        //        id = available_slots.back();
+        //        available_slots.pop_back();
+        //        assert(id != u32_invalid_id);
+        //        windows[id] = info;
+        //    }
 
-            return id;
-        }
+        //    return id;
+        //}
 
 
-        void remove_from_windows(u32 id) {
-            assert(id < windows.size());
-            available_slots.emplace_back(id);
-        }
-        // -------------------------------------------------------------------------------------
+        //void remove_from_windows(u32 id) {
+        //    assert(id < windows.size());
+        //    available_slots.emplace_back(id);
+        //}
+        //// -------------------------------------------------------------------------------------
 
         window_info& get_window_from_id(window_id id) {
             assert(id < windows.size());
@@ -261,7 +261,7 @@ namespace mage::platform {
             DEBUG_ONLY_EXPR(SetLastError(0));
 
             // set long_ptr so that we can access window_id from internal_window_proc()
-            const window_id id{ add_to_windows(info) };
+            const window_id id{ windows.add(info) };
             SetWindowLongPtr(info.hwnd, GWLP_USERDATA, (LONG_PTR)id);
 
 
@@ -281,7 +281,7 @@ namespace mage::platform {
     void remove_window(window_id id) {
         window_info& info = get_window_from_id(id);
         DestroyWindow(info.hwnd);
-        remove_from_windows(id);
+        windows.remove(id);
     }
 
 #else

@@ -31,7 +31,7 @@ namespace mage::gfx::d3d12 {
 
         DXGI_SWAP_CHAIN_DESC1 desc{}; // using this to be able to set format as we please.
         desc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
-        desc.BufferCount = frame_buffer_count;
+        desc.BufferCount = buffer_count;
         desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
         desc.Flags = _allow_tearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
         desc.Format = to_non_srgb(format);
@@ -54,7 +54,7 @@ namespace mage::gfx::d3d12 {
 
         _current_backbuffer_index = _swapchain->GetCurrentBackBufferIndex();
         assert(core::rtv_heap().type() == D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-        for (u32 i = 0; i < frame_buffer_count; ++i) {
+        for (u32 i = 0; i < buffer_count; ++i) {
             _render_target_data[i].rtv = core::rtv_heap().allocate();
         }
 
@@ -74,7 +74,7 @@ namespace mage::gfx::d3d12 {
 
     void d3d12_surface::finalize() {
         // create RTVs for back-buffers
-        for (u32 i = 0; i < frame_buffer_count; ++i) {
+        for (u32 i = 0; i < buffer_count; ++i) {
             render_target_data& data = _render_target_data[i];
             assert(!data.resource); // we're creating swapchain, resource should be nullptr
             DXCALL(_swapchain->GetBuffer(i, IID_PPV_ARGS(&data.resource)));
@@ -104,7 +104,7 @@ namespace mage::gfx::d3d12 {
     
 
     void d3d12_surface::release() {
-        for (u32 i = 0; i < frame_buffer_count; ++i) {
+        for (u32 i = 0; i < buffer_count; ++i) {
             render_target_data& data = _render_target_data[i];
             core::release(data.resource);
             core::rtv_heap().free(data.rtv);
