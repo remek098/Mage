@@ -162,11 +162,12 @@ namespace mage::gfx::d3d12::core {
             u32                             _frame_index        = 0;
         }; // class d3d12_command
 
+        using surface_collection = utl::free_list<d3d12_surface>;
 // ---- list of variables in translation unit (in anonymous namespace)
         ID3D12Device14*                     d3d_main_device = nullptr;
         IDXGIFactory7*                      dxgi_factory = nullptr;
         d3d12_command                       gfx_command;
-        utl::vector<d3d12_surface>          surfaces;
+        surface_collection                  surfaces;
 
         // descriptor heaps
         descriptor_heap                     rtv_desc_heap{ D3D12_DESCRIPTOR_HEAP_TYPE_RTV };
@@ -180,7 +181,7 @@ namespace mage::gfx::d3d12::core {
         std::mutex                          deferred_releases_mutex{};
 
 
-        constexpr DXGI_FORMAT render_target_format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+        constexpr DXGI_FORMAT       render_target_format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
         constexpr D3D_FEATURE_LEVEL minimum_feature_level{ D3D_FEATURE_LEVEL_11_0 };
 
         bool failed_init() {
@@ -397,8 +398,7 @@ namespace mage::gfx::d3d12::core {
 
     surface create_surface(platform::window window) {
         // NOTE: not the best solution, will have to implement free-list and use it there.
-        surfaces.emplace_back(window);
-        surface_id id{ (u32)surfaces.size() - 1 };
+        surface_id id{ surfaces.add(window) };
         surfaces[id].create_swapchain(dxgi_factory, gfx_command.get_command_queue(), render_target_format);
         
         return surface{ id };
@@ -407,7 +407,7 @@ namespace mage::gfx::d3d12::core {
         gfx_command.flush();
         // TODO: will have to wait till we have a free-list container. (to do surfaces[id] = d3d12_surface{})
         //surfaces[id].release();
-        surfaces[id].~d3d12_surface();
+        surfaces.remove(id);
     }
     void resize_surface(surface_id id, u32 width, u32 height) {
         gfx_command.flush();

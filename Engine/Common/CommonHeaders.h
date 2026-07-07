@@ -37,17 +37,17 @@
 
 #endif
 
+#ifdef _DEBUG
+// works kinda same as assert()
+#define DEBUG_ONLY_EXPR(x) x
+#else
+// works kinda same as assert()
+#define DEBUG_ONLY_EXPR(x)
+#endif
+
 // common headers
 #include "PrimitiveTypes.h"
 #include"..\Utilities\Math.h"
 #include "../Utilities/Utilities.h"
 #include "../Utilities/MathTypes.h"
 #include "Id.h"
-
-#ifdef _DEBUG
-// works kinda same as assert()
-#define DEBUG_ONLY_EXPR(x) x
-#else
-// works kinda same as assert()
-#define DEBUG_ONLY_EXPR(x) (void(0))
-#endif
