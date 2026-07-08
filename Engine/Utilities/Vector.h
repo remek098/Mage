@@ -54,7 +54,7 @@ namespace mage::utl {
         /// <para/> The original vector will be empty after move.
         /// </summary>
         /// <param name="o"></param>
-        constexpr vector(const vector&& o) 
+        constexpr vector(vector&& o) 
             : _capacity{o._capacity}, _size{o._size}, _data{o._data}
         {
             o.reset();
