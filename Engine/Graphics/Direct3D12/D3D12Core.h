@@ -32,7 +32,7 @@ namespace mage::gfx::d3d12::core {
         }
     }
 
-    ID3D12Device* const get_device();
+    id3d12_device* const device();
     u32 get_current_frame_index();
 
 
@@ -41,12 +41,7 @@ namespace mage::gfx::d3d12::core {
     descriptor_heap& srv_heap();
     descriptor_heap& uav_heap();
 
-    /// <summary>
-    /// returns DXGI_FORMAT_R8G8B8A8_UNORM_SRGB
-    /// </summary>
-    /// <returns></returns>
-    DXGI_FORMAT default_render_target_format();
-
+    
     /// <summary>
     ///  Indicates that resources for this frame have to be released.
     /// <para/>

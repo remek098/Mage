@@ -18,7 +18,7 @@ namespace mage::gfx::d3d12 {
     } // anonymous namespace
 
 
-    void d3d12_surface::create_swapchain(IDXGIFactory7* factory, ID3D12CommandQueue* cmd_queue, DXGI_FORMAT format) {
+    void d3d12_surface::create_swapchain(IDXGIFactory7* factory, ID3D12CommandQueue* cmd_queue, DXGI_FORMAT format /*default_backbuffer_format*/) {
         assert(factory && cmd_queue);
         release();
 
@@ -26,6 +26,7 @@ namespace mage::gfx::d3d12 {
                       && _allow_tearing) {
             _present_flags = DXGI_PRESENT_ALLOW_TEARING;
         }
+        _format = format;
 
         //_allow_tearing = _present_flags = 0;
 
@@ -80,9 +81,9 @@ namespace mage::gfx::d3d12 {
             DXCALL(_swapchain->GetBuffer(i, IID_PPV_ARGS(&data.resource)));
 
             D3D12_RENDER_TARGET_VIEW_DESC desc{};
-            desc.Format = core::default_render_target_format();
+            desc.Format = _format;
             desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
-            core::get_device()->CreateRenderTargetView(data.resource, &desc, data.rtv.cpu);
+            core::device()->CreateRenderTargetView(data.resource, &desc, data.rtv.cpu);
         }
 
         DXGI_SWAP_CHAIN_DESC desc{};

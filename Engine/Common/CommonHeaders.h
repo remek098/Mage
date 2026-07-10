@@ -1,5 +1,6 @@
 #pragma once
 
+#pragma warning(disable: 4530)
 // C/Cpp headers
 
 #include <stdint.h>

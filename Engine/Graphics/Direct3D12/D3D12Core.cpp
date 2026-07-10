@@ -1,6 +1,7 @@
 #include "D3D12Core.h"
 #include "D3D12Resources.h"
 #include "D3D12Surface.h"
+#include "D3D12Helpers.h"
 
 using namespace Microsoft::WRL;
 
@@ -17,7 +18,7 @@ namespace mage::gfx::d3d12::core {
             d3d12_command() = default;
             DISABLE_COPY_AND_MOVE(d3d12_command);
 
-            explicit d3d12_command(ID3D12Device14* const device, D3D12_COMMAND_LIST_TYPE type) {
+            explicit d3d12_command(id3d12_device* const device, D3D12_COMMAND_LIST_TYPE type) {
                 HRESULT hr = S_OK;
                 
                 D3D12_COMMAND_QUEUE_DESC desc{};
@@ -126,7 +127,7 @@ namespace mage::gfx::d3d12::core {
             }
 
             constexpr ID3D12CommandQueue* const get_command_queue() const { return _cmd_queue; }
-            constexpr ID3D12GraphicsCommandList10* const command_list() const { return _cmd_list; }
+            constexpr id3d12_graphics_command_list* const command_list() const { return _cmd_list; }
             constexpr u32 frame_index() const { return _frame_index; }
 
 
@@ -154,7 +155,7 @@ namespace mage::gfx::d3d12::core {
             };
 
             ID3D12CommandQueue*             _cmd_queue          = nullptr;
-            ID3D12GraphicsCommandList10*    _cmd_list           = nullptr;
+            id3d12_graphics_command_list*   _cmd_list           = nullptr;
             ID3D12Fence1*                   _fence              = nullptr;
             u64                             _fence_value        = 0;
             HANDLE                          _fence_event        = nullptr;
@@ -164,7 +165,7 @@ namespace mage::gfx::d3d12::core {
 
         using surface_collection = utl::free_list<d3d12_surface>;
 // ---- list of variables in translation unit (in anonymous namespace)
-        ID3D12Device14*                     d3d_main_device = nullptr;
+        id3d12_device*                     d3d_main_device = nullptr;
         IDXGIFactory7*                      dxgi_factory = nullptr;
         d3d12_command                       gfx_command;
         surface_collection                  surfaces;
@@ -381,14 +382,13 @@ namespace mage::gfx::d3d12::core {
     }
 
 
-    ID3D12Device* const get_device() { return d3d_main_device; }
+    id3d12_device* const device() { return d3d_main_device; }
 
     descriptor_heap& rtv_heap() {return rtv_desc_heap;}
     descriptor_heap& dsv_heap() {return dsv_desc_heap;}
     descriptor_heap& srv_heap() {return srv_desc_heap;}
     descriptor_heap& uav_heap() { return uav_desc_heap; }
 
-    DXGI_FORMAT default_render_target_format() { return render_target_format; }
 
     u32 get_current_frame_index() { return gfx_command.frame_index(); }
 
@@ -424,7 +424,7 @@ namespace mage::gfx::d3d12::core {
         // wait for the GPU to finish with the command allcator and reset the allocator once the GPU is done with it.
         // This frees the memory that was used to store commands.
         gfx_command.begin_frame();
-        ID3D12GraphicsCommandList10* cmd_list = gfx_command.command_list();
+        id3d12_graphics_command_list* cmd_list = gfx_command.command_list();
 
         const u32 frame_index = get_current_frame_index();
         if (deferred_releases_flag[frame_index]) {

@@ -19,7 +19,7 @@ namespace mage::gfx::d3d12 {
 
         release(); // because this function can be used multiple times
 
-        auto* const device = core::get_device();
+        auto* const device = core::device();
         assert(device);
 
         D3D12_DESCRIPTOR_HEAP_DESC desc{};
@@ -116,7 +116,7 @@ namespace mage::gfx::d3d12 {
 
     ///////// D3D12 TEXTURE ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     d3d12_texture::d3d12_texture(d3d12_texture_init_info info) {
-        auto* const device = core::get_device();
+        auto* const device = core::device();
         assert(device);
         
         D3D12_CLEAR_VALUE* const clear_value{
@@ -177,7 +177,7 @@ namespace mage::gfx::d3d12 {
         desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
         desc.Texture2D.MipSlice = 0; // indicates at which mip level we will create render target view
 
-        auto* const device = core::get_device();
+        auto* const device = core::device();
         assert(device);
         // for each of mip levels
         for (u32 i = 0; i < _mip_count; ++i) {
@@ -228,7 +228,7 @@ namespace mage::gfx::d3d12 {
 
         _dsv = core::dsv_heap().allocate();
         
-        auto* const device = core::get_device();
+        auto* const device = core::device();
         assert(device);
         device->CreateDepthStencilView(resource(), &dsv_desc, _dsv.cpu);
     }
