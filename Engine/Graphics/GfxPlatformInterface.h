@@ -21,5 +21,7 @@ namespace mage::gfx {
             u32(*height)(surface_id);
             void(*render)(surface_id);
         } surface;
+
+        gfx_platform platform = (gfx_platform)-1;
     };
 }

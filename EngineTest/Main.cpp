@@ -51,9 +51,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             }
             test.run();
         }
+        // NOTE: it makes sense to shutdown only if initialization was complete.
+        // but if initialization would allocate any resources that need to be released during shutdown before it can return false,
+        // then we would have to move shutdown outside if block.
+        test.shutdown();
     }
 
-    test.shutdown();
     return 0;
 }
 

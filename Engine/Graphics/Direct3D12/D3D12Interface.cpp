@@ -14,5 +14,7 @@ namespace mage::gfx::d3d12 {
         pi.surface.width = core::surface_width;
         pi.surface.height = core::surface_height;
         pi.surface.render = core::render_surface;
+
+        pi.platform = gfx_platform::d3d12;
     }
 } // namespace mage::gfx::d3d12

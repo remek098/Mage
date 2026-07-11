@@ -2,6 +2,7 @@
 #include "..\Components\Entity.h"
 #include "..\Components\Transform.h"
 #include "..\Components\Script.h"
+#include "Graphics\Renderer.h"
 
 #if !defined(SHIPPING)
 
@@ -144,6 +145,12 @@ namespace mage::content {
         for ( auto entity : loaded_entities ) {
             game_entity::remove(entity.get_id());
         }
+    }
+
+
+    bool load_engine_shaders(std::unique_ptr<u8[]>& shaders, u64& size) {
+        auto path = gfx::get_engine_shaders_path();
+        return read_file(path, shaders, size);
     }
 }
 

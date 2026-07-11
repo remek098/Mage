@@ -2,6 +2,7 @@
 #include "..\Platform\Platform.h"
 #include "..\Graphics\Renderer.h"
 #include "TestRenderer.h"
+#include "ShaderCompilation.h"
 
 #if TEST_RENDERER
 using namespace mage;
@@ -76,8 +77,13 @@ void destroy_render_surface(gfx::render_surface& surface) {
 }
 
 bool EngineTest::initialize() {
-    bool result = gfx::initialize(gfx::gfx_platform::d3d12);
-    if (!result) return result;
+    while (!compile_shaders()) {
+         // pop up a message box allowing the user to retry compilation.
+        if (MessageBox(nullptr, L"Failed to compile engine shaders.", L"Shader Compilation Error.", MB_RETRYCANCEL) != IDRETRY)
+            return false;
+    }
+
+    if (!gfx::initialize(gfx::gfx_platform::d3d12)) return false;
 
     platform::window_init_info info[] = {
             {&win_proc, nullptr, L"Test renderer window 1", 0, 0, 400, 800},
@@ -90,7 +96,7 @@ bool EngineTest::initialize() {
     for (u32 i = 0; i < _countof(g_surfaces); ++i)
         create_render_surface(g_surfaces[i], info[i]);
     
-    return result;
+    return true;
 }
 
 void EngineTest::run() {

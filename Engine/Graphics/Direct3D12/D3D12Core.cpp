@@ -1,7 +1,6 @@
 #include "D3D12Core.h"
-#include "D3D12Resources.h"
 #include "D3D12Surface.h"
-#include "D3D12Helpers.h"
+#include "D3D12Shaders.h"
 
 using namespace Microsoft::WRL;
 
@@ -182,7 +181,6 @@ namespace mage::gfx::d3d12::core {
         std::mutex                          deferred_releases_mutex{};
 
 
-        constexpr DXGI_FORMAT       render_target_format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
         constexpr D3D_FEATURE_LEVEL minimum_feature_level{ D3D_FEATURE_LEVEL_11_0 };
 
         bool failed_init() {
@@ -332,6 +330,10 @@ namespace mage::gfx::d3d12::core {
         new (&gfx_command) d3d12_command(d3d_main_device, D3D12_COMMAND_LIST_TYPE_DIRECT);
         if (!gfx_command.get_command_queue()) return failed_init();
 
+        // initialize modules
+        if (!shaders::initialize())
+            return failed_init();
+
         NAME_D3D12_OBJECT(d3d_main_device, L"Main D3D12 Device");
         NAME_D3D12_OBJECT(rtv_desc_heap.heap(), L"RTV Descriptor Heap");
         NAME_D3D12_OBJECT(dsv_desc_heap.heap(), L"DSV Descriptor Heap");
@@ -350,7 +352,17 @@ namespace mage::gfx::d3d12::core {
             process_deferred_releases(i);
         }
 
+        // shutdown modules.
+        shaders::shutdown();
+
         release(dxgi_factory);
+
+        // NOTE: some modules free their descriptors when they shutdown.
+        //          We process those by calling process_deferred_free once more.
+        rtv_desc_heap.process_deferred_free(0);
+        dsv_desc_heap.process_deferred_free(0);
+        srv_desc_heap.process_deferred_free(0);
+        uav_desc_heap.process_deferred_free(0);
 
         rtv_desc_heap.release();
         dsv_desc_heap.release();
@@ -399,7 +411,7 @@ namespace mage::gfx::d3d12::core {
     surface create_surface(platform::window window) {
         // NOTE: not the best solution, will have to implement free-list and use it there.
         surface_id id{ surfaces.add(window) };
-        surfaces[id].create_swapchain(dxgi_factory, gfx_command.get_command_queue(), render_target_format);
+        surfaces[id].create_swapchain(dxgi_factory, gfx_command.get_command_queue());
         
         return surface{ id };
     }

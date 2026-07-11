@@ -10,6 +10,7 @@
 
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "d3d12.lib")
+#pragma comment(lib, "dxcompiler.lib")
 
 namespace mage::gfx::d3d12 {
     constexpr u32 frame_buffer_count = 3;
@@ -56,3 +57,5 @@ if(swprintf_s(full_name, L"%s[%u]", name, index) > 0) {             \
 #define NAME_D3D12_OBJECT_INDEXED(obj, index, name)
 #endif // _DEBUG
 
+#include "D3D12Helpers.h"
+#include "D3D12Resources.h"
