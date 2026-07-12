@@ -60,7 +60,7 @@ namespace mage::gfx::d3d12 {
 
         constexpr u32 width() const { return (u32)_viewport.Width; }
         constexpr u32 height() const { return (u32)_viewport.Height; }
-        constexpr ID3D12Resource* const get_backbuffer() { return _render_target_data[_current_backbuffer_index].resource; }
+        constexpr ID3D12Resource* backbuffer() const { return _render_target_data[_current_backbuffer_index].resource; }
         constexpr D3D12_CPU_DESCRIPTOR_HANDLE rtv() const { return _render_target_data[_current_backbuffer_index].rtv.cpu; }
         constexpr const D3D12_VIEWPORT& viewport() const { return _viewport; }
         constexpr const D3D12_RECT& scissor_rect() const { return _scissor_rect; }

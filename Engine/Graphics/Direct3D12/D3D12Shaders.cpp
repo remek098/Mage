@@ -11,7 +11,7 @@ namespace mage::gfx::d3d12::shaders {
                                       // const because we aren't allowed to write to this memory.
 
         /// each element in this array points to an offset within the shaders_blob.
-        compiled_shader_ptr engine_shaders[engine_shader::count];
+        compiled_shader_ptr engine_shaders[engine_shader::count]{};
 
 
         // this is a chunk of memory that contains all compiled engine shaders.
@@ -33,7 +33,7 @@ namespace mage::gfx::d3d12::shaders {
             u32 index = 0;
             while (offset < size && result) {
                 assert(index < engine_shader::count);
-                compiled_shader_ptr& shader = engine_shaders[index];
+                compiled_shader_ptr& shader{ engine_shaders[index] };
                 assert(!shader); // well we're about to load shaders, shouldn't have any shaders loaded, obviously.
                 result &= index < engine_shader::count && !shader;
                 if (!result) break;
@@ -44,7 +44,7 @@ namespace mage::gfx::d3d12::shaders {
             }
             assert(offset == size && index == engine_shader::count);
 
-            return true;
+            return result;
         } // bool load_engine_shaders()
     } // anonymous namespace
 
@@ -66,6 +66,7 @@ namespace mage::gfx::d3d12::shaders {
         assert(id < engine_shader::count);
         const compiled_shader_ptr shader{ engine_shaders[id] };
         assert(shader && shader->size);
+        // return { &shader->byte_code, shader->size };
         return { &shader->byte_code, shader->size };
     }
 

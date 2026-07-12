@@ -1,6 +1,7 @@
 #include "D3D12Core.h"
 #include "D3D12Surface.h"
 #include "D3D12Shaders.h"
+#include "D3D12GPass.h"
 
 using namespace Microsoft::WRL;
 
@@ -85,11 +86,14 @@ namespace mage::gfx::d3d12::core {
             /// <summary>
             /// Signal the fence with the new fence value.
             /// </summary>
-            void end_frame() {
+            void end_frame(const d3d12_surface& surface) {
                 // subbmit command list(s) for execution
                 DXCALL(_cmd_list->Close());
                 ID3D12CommandList* const cmd_lists[] { _cmd_list };
                 _cmd_queue->ExecuteCommandLists(_countof(cmd_lists), &cmd_lists[0]);
+                
+                // presenting swapchain buffer happens in lockstep with frame buffers.
+                surface.present();
 
                 u64& fence_value = _fence_value;
                 ++fence_value;
@@ -164,10 +168,11 @@ namespace mage::gfx::d3d12::core {
 
         using surface_collection = utl::free_list<d3d12_surface>;
 // ---- list of variables in translation unit (in anonymous namespace)
-        id3d12_device*                     d3d_main_device = nullptr;
+        id3d12_device*                      d3d_main_device = nullptr;
         IDXGIFactory7*                      dxgi_factory = nullptr;
         d3d12_command                       gfx_command;
         surface_collection                  surfaces;
+        d3dx::d3d12_resource_barrier        resource_barriers{};
 
         // descriptor heaps
         descriptor_heap                     rtv_desc_heap{ D3D12_DESCRIPTOR_HEAP_TYPE_RTV };
@@ -181,7 +186,7 @@ namespace mage::gfx::d3d12::core {
         std::mutex                          deferred_releases_mutex{};
 
 
-        constexpr D3D_FEATURE_LEVEL minimum_feature_level{ D3D_FEATURE_LEVEL_11_0 };
+        constexpr D3D_FEATURE_LEVEL         minimum_feature_level{ D3D_FEATURE_LEVEL_11_0 };
 
         bool failed_init() {
             shutdown();
@@ -331,8 +336,10 @@ namespace mage::gfx::d3d12::core {
         if (!gfx_command.get_command_queue()) return failed_init();
 
         // initialize modules
-        if (!shaders::initialize())
+        if (!(shaders::initialize()
+              && gpass::initialize())) {
             return failed_init();
+        }
 
         NAME_D3D12_OBJECT(d3d_main_device, L"Main D3D12 Device");
         NAME_D3D12_OBJECT(rtv_desc_heap.heap(), L"RTV Descriptor Heap");
@@ -353,6 +360,7 @@ namespace mage::gfx::d3d12::core {
         }
 
         // shutdown modules.
+        gpass::shutdown();
         shaders::shutdown();
 
         release(dxgi_factory);
@@ -432,6 +440,8 @@ namespace mage::gfx::d3d12::core {
     u32 surface_height(surface_id id) {
         return surfaces[id].height();
     }
+
+
     void render_surface(surface_id id) {
         // wait for the GPU to finish with the command allcator and reset the allocator once the GPU is done with it.
         // This frees the memory that was used to store commands.
@@ -444,14 +454,46 @@ namespace mage::gfx::d3d12::core {
         }
 
         const d3d12_surface& surface = surfaces[id];
+        ID3D12Resource* const current_back_buffer = surface.backbuffer();
 
-        // presenting swapchain buffer happens in lockstep with frame buffers.
-        surface.present();
+
+        d3d12_frame_info frame_info{ surface.width(), surface.height() };
+        gpass::set_size({ frame_info.surface_width, frame_info.surface_height });
+
+        d3dx::d3d12_resource_barrier& barriers = resource_barriers;
+        
+        
         // record commands
-        // ...
+        cmd_list->RSSetViewports(1, &surface.viewport());
+        cmd_list->RSSetScissorRects(1, &surface.scissor_rect());
 
+        // depth prepass
+        gpass::add_transitions_for_depth_prepass(barriers);
+        barriers.apply(cmd_list);
+        gpass::set_render_targets_for_depth_prepass(cmd_list);
+        gpass::depth_prepass(cmd_list, frame_info);
+
+        // geometry and lighting pass
+        gpass::add_transitions_for_gpass(barriers);
+        barriers.apply(cmd_list);
+        gpass::set_render_targets_for_gpass(cmd_list);
+        gpass::render(cmd_list, frame_info);
+
+        d3dx::transition_resource(cmd_list, current_back_buffer,
+                                  D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+        // Post-process
+        gpass::add_transitions_for_post_process(barriers);
+        barriers.apply(cmd_list);
+        // will write to the current backbuffer, so backbuffer is a render target.
+
+        // after post process
+        d3dx::transition_resource(cmd_list, current_back_buffer,
+                                  D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+        
+        // presenting swapchain buffer happens in lockstep with frame buffers.
+        //surface.present();
         // done recording commands. Now execute commands, signal and increment the fence value for next frame.
-        gfx_command.end_frame();
+        gfx_command.end_frame(surface);
     }
 
 } // namespace mage::gfx::d3d12::core

@@ -27,11 +27,11 @@ namespace mage::transform {
             scales.emplace_back(info.scale);
         }
 
-        return component(transform_id{ (id::id_type)positions.size() - 1 });
+        return component(transform_id{ entity.get_id() });
     }
 
 
-    void remove(component comp) {
+    void remove([[maybe_unused]] component comp) {
         // NOTE: technically we don't have to clean up positions, rotations and scales utl::vectors there,
         // since create() manages allocation quite well.
         assert(comp.is_valid());

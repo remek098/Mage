@@ -209,7 +209,7 @@ namespace mage::gfx::d3d12 {
 
         // have to fill this since we're creating SRV using typeless format
         srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-        srv_desc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+        srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;// D3D12_SRV_DIMENSION_BUFFER;
         srv_desc.Texture2D.MipLevels = 1;
         srv_desc.Texture2D.MostDetailedMip = 0;
         srv_desc.Texture2D.PlaneSlice = 0;

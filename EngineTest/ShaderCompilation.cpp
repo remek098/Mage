@@ -122,8 +122,8 @@ namespace {
             return shader.Detach(); // detaching pointer from ComPtr so that it's memory will not get Reset.
         }
     private:
-        // NOTE: we have to use shader model 6.0 or later to be able to use DXC
-        const char* _profile_strings[shader_type::count]{
+        // NOTE: we have to use shader model 6.0 or later to be able to use DXC. AS and MS are supported only from SM6.5 onwards.
+        constexpr static const char* _profile_strings[]{
             "vs_6_5", "hs_6_5", "ds_6_5", "gs_6_5", "ps_6_5", "cs_6_5", "as_6_5", "ms_6_5"
         };
         static_assert(_countof(_profile_strings) == shader_type::count);
@@ -137,7 +137,7 @@ namespace {
 
     // Get the path to the compiled shaders binary file.
     decltype(auto) get_engine_shaders_path() {
-        return std::filesystem::absolute(gfx::get_engine_shaders_path(gfx::gfx_platform::d3d12));
+        return std::filesystem::path{ gfx::get_engine_shaders_path(gfx::gfx_platform::d3d12) };
     }
 
     // If any file path of shader_files[] doesn't exist or last write time for shader's source file is > last compilation time, it returns false;
@@ -156,7 +156,7 @@ namespace {
 
             path = shaders_source_path;
             path += info.file;
-            full_path = std::filesystem::absolute(path);
+            full_path = path;
             if (!std::filesystem::exists(full_path)) return false;
 
             auto shader_file_time = std::filesystem::last_write_time(full_path);
@@ -181,7 +181,7 @@ namespace {
         for (auto& shader : shaders) {
             const D3D12_SHADER_BYTECODE byte_code{ shader->GetBufferPointer(), shader->GetBufferSize() };
             file.write((char*)&byte_code.BytecodeLength, sizeof(byte_code.BytecodeLength));
-            file.write((char*)&byte_code.pShaderBytecode, byte_code.BytecodeLength);
+            file.write((char*)byte_code.pShaderBytecode, byte_code.BytecodeLength);
         }
 
         file.close();
@@ -205,7 +205,7 @@ bool compile_shaders() {
 
         path = shaders_source_path;
         path += info.file;
-        full_path = std::filesystem::absolute(path);
+        full_path = path;
         if (!std::filesystem::exists(full_path)) return false;
 
         ComPtr<IDxcBlob> compiled_shader{ compiler.compile(info, full_path) };
