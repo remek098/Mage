@@ -2,6 +2,7 @@
 #include "D3D12Surface.h"
 #include "D3D12Shaders.h"
 #include "D3D12GPass.h"
+#include "D3D12PostProcess.h"
 
 using namespace Microsoft::WRL;
 
@@ -336,8 +337,9 @@ namespace mage::gfx::d3d12::core {
         if (!gfx_command.get_command_queue()) return failed_init();
 
         // initialize modules
-        if (!(shaders::initialize()
-              && gpass::initialize())) {
+        if (!(shaders::initialize() && 
+              gpass::initialize() && 
+              fx::initialize())) {
             return failed_init();
         }
 
@@ -360,6 +362,7 @@ namespace mage::gfx::d3d12::core {
         }
 
         // shutdown modules.
+        fx::shutdown();
         gpass::shutdown();
         shaders::shutdown();
 
@@ -464,6 +467,9 @@ namespace mage::gfx::d3d12::core {
         
         
         // record commands
+        ID3D12DescriptorHeap* const heaps[]{ srv_desc_heap.heap() };
+        cmd_list->SetDescriptorHeaps(1, &heaps[0]);
+
         cmd_list->RSSetViewports(1, &surface.viewport());
         cmd_list->RSSetScissorRects(1, &surface.scissor_rect());
 
@@ -484,7 +490,9 @@ namespace mage::gfx::d3d12::core {
         // Post-process
         gpass::add_transitions_for_post_process(barriers);
         barriers.apply(cmd_list);
+
         // will write to the current backbuffer, so backbuffer is a render target.
+        fx::post_process(cmd_list, surface.rtv());
 
         // after post process
         d3dx::transition_resource(cmd_list, current_back_buffer,

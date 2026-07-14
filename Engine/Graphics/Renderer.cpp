@@ -31,7 +31,8 @@ namespace mage::gfx {
     }
 
     void shutdown() {
-        gfx_interface.shutdown();
+        // unnecessary if application shuts down only if initialization succedded
+        if (gfx_interface.platform != (gfx_platform)-1) gfx_interface.shutdown();
     }
 
 

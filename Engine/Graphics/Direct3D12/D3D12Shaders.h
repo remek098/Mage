@@ -22,6 +22,8 @@ namespace mage::gfx::d3d12::shaders {
         enum id : u32 {
             fullscreen_triangle_vs  = 0,
             fill_color_ps           = 1,
+            post_process_ps         = 2,
+
             count
         };
     };

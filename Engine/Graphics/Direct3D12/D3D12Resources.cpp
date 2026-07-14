@@ -86,8 +86,8 @@ namespace mage::gfx::d3d12 {
         handle.cpu.ptr = _cpu_start.ptr + offset;
         if (is_shader_visible()) handle.gpu.ptr = _gpu_start.ptr + offset;
 
+        handle.index = index;
         DEBUG_ONLY_EXPR(handle.container = this);
-        DEBUG_ONLY_EXPR(handle.index = index);
         return handle;
     }
 

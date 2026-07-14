@@ -10,8 +10,12 @@ using namespace mage;
 gfx::render_surface g_surfaces[4];
 time_it timer{};
 
+
+bool is_restarting = false;
 // forward declerations
 void destroy_render_surface(gfx::render_surface& surface);
+bool test_initialize();
+void test_shutdown();
 
 LRESULT win_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
     switch (msg) {
@@ -29,7 +33,7 @@ LRESULT win_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 
                 }
             }
-            if (all_closed) {
+            if (all_closed && !is_restarting) {
                 PostQuitMessage(0);
                 return 0;
             }
@@ -54,6 +58,11 @@ LRESULT win_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
                 PostMessage(hwnd, WM_CLOSE, 0, 0);
                 return 0;
             }
+            else if (wparam == VK_F11) {
+                is_restarting = true;
+                test_shutdown();
+                test_initialize();
+            }
             break;
         }
         default:
@@ -76,9 +85,9 @@ void destroy_render_surface(gfx::render_surface& surface) {
     if(temp.window.is_valid()) platform::remove_window(temp.window.get_id());
 }
 
-bool EngineTest::initialize() {
+bool test_initialize() {
     while (!compile_shaders()) {
-         // pop up a message box allowing the user to retry compilation.
+        // pop up a message box allowing the user to retry compilation.
         if (MessageBox(nullptr, L"Failed to compile engine shaders.", L"Shader Compilation Error.", MB_RETRYCANCEL) != IDRETRY)
             return false;
     }
@@ -95,8 +104,20 @@ bool EngineTest::initialize() {
 
     for (u32 i = 0; i < _countof(g_surfaces); ++i)
         create_render_surface(g_surfaces[i], info[i]);
-    
+
+    is_restarting = false;
     return true;
+}
+
+void test_shutdown() {
+    for (u32 i = 0; i < _countof(g_surfaces); ++i)
+        destroy_render_surface(g_surfaces[i]);
+
+    gfx::shutdown();
+}
+
+bool EngineTest::initialize() {
+    return test_initialize();
 }
 
 void EngineTest::run() {
@@ -111,10 +132,7 @@ void EngineTest::run() {
 }
 
 void EngineTest::shutdown() {
-    for (u32 i = 0; i < _countof(g_surfaces); ++i)
-        destroy_render_surface(g_surfaces[i]);
-
-    gfx::shutdown();
+    test_shutdown();
 }
 
 #endif // TEST_RENDERER

@@ -8,16 +8,19 @@ namespace mage::gfx::d3d12 {
     struct descriptor_handle {
         D3D12_CPU_DESCRIPTOR_HANDLE cpu{};
         D3D12_GPU_DESCRIPTOR_HANDLE gpu{};
+        u32                         index = u32_invalid_id; // remember index of that slot in the heap, to check if cpu and gpu variables are still
+                                                            // correct or not
 
-        constexpr bool is_valid() const { return cpu.ptr != 0; }
-        constexpr bool is_shader_visible() const { return gpu.ptr != 0; }
+        [[nodiscard]] constexpr bool is_valid() const { return cpu.ptr != 0; }
+        [[nodiscard]] constexpr bool is_shader_visible() const { return gpu.ptr != 0; }
+
 
 #ifdef _DEBUG
     private:
         friend class descriptor_heap;
         descriptor_heap*    container = nullptr; // to know on which descriptor heap out handle is being allocated
-        u32                 index = u32_invalid_id; // remember index of that slot in the heap, to check if cpu and gpu variables are still
-                                                    // correct or not
+        //u32                 index = u32_invalid_id; // remember index of that slot in the heap, to check if cpu and gpu variables are still
+        //                                            // correct or not
 #endif
     };
 
@@ -41,13 +44,13 @@ namespace mage::gfx::d3d12 {
         [[nodiscard]] descriptor_handle allocate();
         void free(descriptor_handle& handle);
 
-        constexpr D3D12_DESCRIPTOR_HEAP_TYPE type() const { return _type; }
-        constexpr D3D12_CPU_DESCRIPTOR_HANDLE cpu_start() const { return _cpu_start; }
-        constexpr D3D12_GPU_DESCRIPTOR_HANDLE gpu_start() const { return _gpu_start; }
-        constexpr ID3D12DescriptorHeap* const heap() const { return _heap; }
-        const u32 capacity() { return _capacity; }
-        const u32 size() { return _size; }
-        const u32 descriptor_size() { return _descriptor_size; }
+        [[nodiscard]] constexpr D3D12_DESCRIPTOR_HEAP_TYPE type() const { return _type; }
+        [[nodiscard]] constexpr D3D12_CPU_DESCRIPTOR_HANDLE cpu_start() const { return _cpu_start; }
+        [[nodiscard]] constexpr D3D12_GPU_DESCRIPTOR_HANDLE gpu_start() const { return _gpu_start; }
+        [[nodiscard]] constexpr ID3D12DescriptorHeap* const heap() const { return _heap; }
+        [[nodiscard]] const u32 capacity() { return _capacity; }
+        [[nodiscard]] const u32 size() { return _size; }
+        [[nodiscard]] const u32 descriptor_size() { return _descriptor_size; }
         
         constexpr bool is_shader_visible() const { return _gpu_start.ptr != 0; }
 
@@ -123,8 +126,8 @@ namespace mage::gfx::d3d12 {
 
 
         void release();
-        constexpr ID3D12Resource* const resource() const { return _resource; }
-        constexpr descriptor_handle srv() const { return _srv; }
+        [[nodiscard]] constexpr ID3D12Resource* const resource() const { return _resource; }
+        [[nodiscard]] constexpr descriptor_handle srv() const { return _srv; }
 
     private:
         constexpr void move(d3d12_texture& o) {
@@ -172,10 +175,10 @@ namespace mage::gfx::d3d12 {
         void release();
 
 
-        constexpr u32 mip_count() const { return _mip_count; }
-        constexpr D3D12_CPU_DESCRIPTOR_HANDLE rtv(u32 mip_index) const { assert(mip_index < _mip_count); return _rtv[mip_index].cpu; }
-        constexpr descriptor_handle srv() const { return _texture.srv(); }
-        constexpr ID3D12Resource* const resource() const { return _texture.resource(); }
+        [[nodiscard]] constexpr u32 mip_count() const { return _mip_count; }
+        [[nodiscard]] constexpr D3D12_CPU_DESCRIPTOR_HANDLE rtv(u32 mip_index) const { assert(mip_index < _mip_count); return _rtv[mip_index].cpu; }
+        [[nodiscard]] constexpr descriptor_handle srv() const { return _texture.srv(); }
+        [[nodiscard]] constexpr ID3D12Resource* const resource() const { return _texture.resource(); }
     private:
         constexpr void move(d3d12_render_texture& o) {
             _texture = std::move(o._texture);
@@ -230,9 +233,9 @@ namespace mage::gfx::d3d12 {
         void release();
 
 
-        constexpr D3D12_CPU_DESCRIPTOR_HANDLE dsv() const { return _dsv.cpu; }
-        constexpr descriptor_handle srv() const { return _texture.srv(); }
-        constexpr ID3D12Resource* const resource() const { return _texture.resource(); }
+        [[nodiscard]] constexpr D3D12_CPU_DESCRIPTOR_HANDLE dsv() const { return _dsv.cpu; }
+        [[nodiscard]] constexpr descriptor_handle srv() const { return _texture.srv(); }
+        [[nodiscard]] constexpr ID3D12Resource* const resource() const { return _texture.resource(); }
     private:
 
     private:
