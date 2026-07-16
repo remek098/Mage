@@ -69,7 +69,18 @@ namespace mage::gfx::d3d12 {
     }
 
     void d3d12_surface::resize() {
+        assert(_swapchain);
+        for (u32 i = 0; i < buffer_count; ++i) {
+            core::release(_render_target_data[i].resource); // release buffers that are used
+        }
 
+        const u32 flags = _allow_tearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0ul;
+        // resize with associated window dimensions
+        DXCALL(_swapchain->ResizeBuffers(buffer_count, 0, 0, DXGI_FORMAT_UNKNOWN, flags));
+        _current_backbuffer_index = _swapchain->GetCurrentBackBufferIndex();
+
+        finalize(); // to put new RTV's in using already allocated descriptors.
+        DEBUG_ONLY_EXPR(OutputDebugString(L"::D3D12 Surface Resized.\n"));
     }
 
 
