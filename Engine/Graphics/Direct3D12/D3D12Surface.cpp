@@ -1,5 +1,6 @@
 #include "D3D12Surface.h"
 #include "D3D12Core.h"
+// #include <sstream>
 
 namespace mage::gfx::d3d12 {
     namespace {
@@ -81,6 +82,17 @@ namespace mage::gfx::d3d12 {
 
         finalize(); // to put new RTV's in using already allocated descriptors.
         DEBUG_ONLY_EXPR(OutputDebugString(L"::D3D12 Surface Resized.\n"));
+        
+        // if you were curious if buffers are resized to proper dimensions, you can uncomment this code and #include <sstream>
+        /*DXGI_SWAP_CHAIN_DESC desc;
+        _swapchain->GetDesc(&desc);
+        std::wstringstream wss;
+        std::wstring str;
+
+        wss << desc.BufferDesc.Width << "x" << desc.BufferDesc.Height << "\n";
+        wss >> str;
+        OutputDebugString(str.c_str());
+        OutputDebugString(L"\n");*/
     }
 
 
