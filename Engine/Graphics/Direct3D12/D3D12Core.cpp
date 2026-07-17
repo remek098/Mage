@@ -130,9 +130,9 @@ namespace mage::gfx::d3d12::core {
                 }
             }
 
-            constexpr ID3D12CommandQueue* const get_command_queue() const { return _cmd_queue; }
-            constexpr id3d12_graphics_command_list* const command_list() const { return _cmd_list; }
-            constexpr u32 frame_index() const { return _frame_index; }
+            [[nodiscard]] constexpr ID3D12CommandQueue* const get_command_queue() const { return _cmd_queue; }
+            [[nodiscard]] constexpr id3d12_graphics_command_list* const command_list() const { return _cmd_list; }
+            [[nodiscard]] constexpr u32 frame_index() const { return _frame_index; }
 
 
         private:

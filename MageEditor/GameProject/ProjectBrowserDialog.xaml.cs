@@ -22,6 +22,8 @@ namespace MageEditor.GameProject
     {
         private readonly CubicEase _animEasing = new CubicEase() { EasingMode = EasingMode.EaseInOut };
 
+        public static bool GoToNewProjectTab { get; set; }
+
         // https://learn.microsoft.com/en-us/dotnet/desktop/wpf/graphics-multimedia/easing-functions
         public ProjectBrowserDialog()
         {
@@ -32,13 +34,17 @@ namespace MageEditor.GameProject
         private void OnProjectBrowserDialogLoaded(object sender, RoutedEventArgs e)
         {
             Loaded -= OnProjectBrowserDialogLoaded;
-            if(!OpenProject.Projects.Any())
+            if(!OpenProject.Projects.Any() || GoToNewProjectTab)
             {
-                openProjectButton.IsEnabled = false;
-                openProjectView.Visibility = Visibility.Hidden;
+                if(!GoToNewProjectTab) {
+                    openProjectButton.IsEnabled = false;
+                    openProjectView.Visibility = Visibility.Hidden;
+
+                }
                 // it's basically like user clicked Create Project button by default if there's no projects to load
                 OnToggleButton_Click(createProjectButton, new RoutedEventArgs());
             }
+            GoToNewProjectTab = false;
         }
 
 

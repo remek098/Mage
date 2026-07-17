@@ -17,19 +17,12 @@ using MageEditor.Components;
 
 namespace MageEditor.GameProject
 {
-    enum BuildConfiguration
-    {
-        Debug,
-        DebugEditor,
-        Release,
-        ReleaseEditor,
-    }
 
 
     [DataContract(Name = "Game")]
     class Project : ViewModelBase
     {
-        public static string Extension { get; } = ".mage";
+        public static string Extension  => ".mage";
 
         [DataMember]
         public string Name { get; private set; } = "New Project";
@@ -40,8 +33,6 @@ namespace MageEditor.GameProject
         public string FullPath => $@"{Path}{Name}{Extension}";
         public string Solution => $@"{Path}{Name}.sln";
         public string ContentPath => $@"{Path}Content\";
-
-        private static readonly string[] _buildConfigurationNames = new string[] { "Debug", "DebugEditor", "Release", "ReleaseEditor" };
 
         public int _buildConfig;
 
@@ -68,7 +59,7 @@ namespace MageEditor.GameProject
         public string[]? AvailableScriptNames
         {
             get => _availableScriptNames;
-            set
+            private set
             {
                 if(_availableScriptNames != value)
                 {
@@ -78,8 +69,8 @@ namespace MageEditor.GameProject
             }
         }
 
-        [DataMember(Name = "Scenes")]
-        private ObservableCollection<Scene> _scenes = new ObservableCollection<Scene>();
+        [DataMember(Name = nameof(Scenes))]
+        private readonly ObservableCollection<Scene> _scenes = new ObservableCollection<Scene>();
 
         public ReadOnlyObservableCollection<Scene> Scenes 
         { get; private set; }
@@ -101,7 +92,7 @@ namespace MageEditor.GameProject
         }
 
 
-        public static Project? Current => Application.Current.MainWindow.DataContext as Project;
+        public static Project? Current => Application.Current.MainWindow?.DataContext as Project;
         public static UndoRedo UndoRedo { get; } = new UndoRedo();
 
         public ICommand UndoCommand { get; private set; }
@@ -187,13 +178,7 @@ namespace MageEditor.GameProject
             OnPropertyChanged(nameof(BuildCommand));
         }
 
-        /*
-        returns BuildConfiguration enum type that we have chosen in Editor with WorldViewEditor's ComboBox x:Name="runConfig"
-        if used with StandaloneBuildConfig property for standalone app
-        and DllBuildConfig property for Editor's game dll
-        */
-        private static string GetConfigurationName(BuildConfiguration configuration) => _buildConfigurationNames[(int)configuration];
-
+        
         private void AddScene(string sceneName)
         {
             Debug.Assert(!string.IsNullOrEmpty(sceneName.Trim()));
@@ -217,10 +202,11 @@ namespace MageEditor.GameProject
             UnloadGameCodeDll();
             VisualStudio.CloseVisualStudio();
             UndoRedo.Reset();
+            Logger.Clear();
         }
 
 
-        public static void Save(Project project)
+        private static void Save(Project project)
         {
             Serializer.ToFile(project, project.FullPath);
             Logger.Log(MessageType.Info, $"Project saved to {project.FullPath}");
@@ -228,7 +214,7 @@ namespace MageEditor.GameProject
 
         private void SaveToBinary()
         {
-            var configName = GetConfigurationName(StandaloneBuildConfig);
+            var configName = VisualStudio.GetConfigurationName(StandaloneBuildConfig);
             var bin = $@"{Path}x64\{configName}\game.bin";
 
             using (var bw = new BinaryWriter(File.Open(bin, FileMode.Create, FileAccess.Write)))
@@ -252,12 +238,11 @@ namespace MageEditor.GameProject
 
         private async Task RunGame(bool debug)
         {
-            string configName = GetConfigurationName(StandaloneBuildConfig);
-            await Task.Run(() => VisualStudio.BuildSolution(this, configName, debug));
+            await Task.Run(() => VisualStudio.BuildSolution(this, StandaloneBuildConfig, debug));
             if(VisualStudio.BuildSucceded)
             {
                 SaveToBinary(); // so that we have up to date data in the "called" game
-                await Task.Run(() => VisualStudio.Run(this, configName, debug));
+                await Task.Run(() => VisualStudio.Run(this, StandaloneBuildConfig, debug));
             }
         }
 
@@ -269,7 +254,7 @@ namespace MageEditor.GameProject
             try
             {
                 UnloadGameCodeDll();
-                await Task.Run(() => VisualStudio.BuildSolution(this, GetConfigurationName(DllBuildConfig), showWindow));
+                await Task.Run(() => VisualStudio.BuildSolution(this, DllBuildConfig, showWindow));
                 if (VisualStudio.BuildSucceded)
                 {
                     LoadGameCodeDll();
@@ -283,7 +268,7 @@ namespace MageEditor.GameProject
         }
         private void LoadGameCodeDll()
         {
-            var configName = GetConfigurationName(DllBuildConfig);
+            var configName = VisualStudio.GetConfigurationName(DllBuildConfig);
             var dll = $@"{Path}x64\{configName}\{Name}.dll";
 
             AvailableScriptNames = null;
@@ -327,7 +312,7 @@ namespace MageEditor.GameProject
                 Scenes = new ReadOnlyObservableCollection<Scene>(_scenes);
                 OnPropertyChanged(nameof(Scenes)); // this makes the controls to update it's bindings to this list.
             }
-            ActiveScene = Scenes.FirstOrDefault(x => x.IsActive);
+            ActiveScene = _scenes?.FirstOrDefault(x => x.IsActive);
             Debug.Assert(ActiveScene != null);
 
             // build game's code dll, but don't show a Visual Studio window.
@@ -342,6 +327,7 @@ namespace MageEditor.GameProject
             Name = name; 
             Path = path;
 
+            Debug.Assert(File.Exists((Path + Name + Extension).ToLower()));
             // whenever project is created, it will have default scene
             //_scenes.Add(new Scene(this, "Default Scene"));
             OnDeserialized(new StreamingContext());

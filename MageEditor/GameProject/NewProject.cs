@@ -1,16 +1,17 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.IO;
-using System.Diagnostics;
-using System.Runtime.Serialization;
-using MageEditor.Utilities;
-using System.Collections.ObjectModel;
+﻿using Accessibility;
 using MageEditor.Common;
-using Accessibility;
+using MageEditor.Utilities;
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Runtime.Serialization;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using System.Windows;
 
 namespace MageEditor.GameProject
@@ -100,7 +101,7 @@ namespace MageEditor.GameProject
             }
         }
 
-        private ObservableCollection<ProjectTemplate?> _projectTemplates = new ObservableCollection<ProjectTemplate?>();
+        private readonly ObservableCollection<ProjectTemplate?> _projectTemplates = new ObservableCollection<ProjectTemplate?>();
         public ReadOnlyObservableCollection<ProjectTemplate?> ProjectTemplates { get; }
 
         private bool ValidateProjectPath()
@@ -108,13 +109,14 @@ namespace MageEditor.GameProject
             var path = ProjectPath;
             if(!Path.EndsInDirectorySeparator(path)) path += @"\";
             path += $@"{ProjectName}\";
+            var nameRegex = new Regex(@"^[A-Za-z_][A-Za-z0-9_]*$");
 
             IsValid = false;
             if (string.IsNullOrWhiteSpace(ProjectName.Trim()))
             {
                 ErrorMsg = "Type in a project name.";
             }
-            else if (ProjectName.IndexOfAny(Path.GetInvalidFileNameChars()) != -1)
+            else if (!nameRegex.IsMatch(ProjectName))
             {
                 ErrorMsg = "Invalid character*(s) in project's name.";
             }
@@ -196,14 +198,14 @@ namespace MageEditor.GameProject
             Debug.Assert(File.Exists(Path.Combine(template.TemplatePath, "MSVCSolution")));
             Debug.Assert(File.Exists(Path.Combine(template.TemplatePath, "MSVCProject")));
 
-            var engineAPI_path = Path.Combine(MainWindow.MagePath, @"Engine\EngineAPI\");
+            var engineAPI_path = @"$(MAGE_ENGINE)Engine\EngineAPI\";
             Debug.Assert(Directory.Exists(engineAPI_path));
 
             // params to fill -> check MSVCProject and MSVCSolution template files inside /MageEditor/ProjectTemplates/EmptyProject/
             var _0 = ProjectName;
             var _1 = "{" + Guid.NewGuid().ToString().ToUpper() + "}";
             var _2 = engineAPI_path; // Mage_InclutePath
-            var _3 = MainWindow.MagePath; // Mage_LibraryPath
+            var _3 = "$(MAGE_ENGINE)"; // Mage_LibraryPath
 
             // create and fill in MSVCSolution
             var solution = File.ReadAllText(Path.Combine(template.TemplatePath, "MSVCSolution"));

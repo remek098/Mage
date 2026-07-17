@@ -47,5 +47,25 @@ namespace MageEditor.Editors
             var dlg = new PrimitiveMeshDialog();
             dlg.ShowDialog();
         }
+
+        private void OnNewProject(object sender, ExecutedRoutedEventArgs e)
+        {
+            ProjectBrowserDialog.GoToNewProjectTab = true;
+            Project.Current?.Unload();
+            Application.Current.MainWindow.DataContext = null;
+            Application.Current.MainWindow.Close();
+        }
+
+        private void OnOpenProject(object sender, ExecutedRoutedEventArgs e)
+        {
+            Project.Current?.Unload();
+            Application.Current.MainWindow.DataContext = null;
+            Application.Current.MainWindow.Close();
+        }
+
+        private void OnEditorClose(object sender, ExecutedRoutedEventArgs e)
+        {
+            Application.Current.MainWindow.Close();
+        }
     }
 }
