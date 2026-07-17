@@ -36,6 +36,15 @@ namespace mage::gfx {
     bool initialize(gfx_platform platform);
     void shutdown();
 
+    // Get the location of compiled engine shaders relative to exe's path.
+    // The path is for the graphics API that is currently in use.
+    const char* get_engine_shaders_path();
+    // Get the location of compiled engine shaders, for the specified platform, relative to exe's path.
+    // The path is for the graphics API that is currently in use.
+    const char* get_engine_shaders_path(gfx_platform platform);
+
+
     surface create_surface(platform::window window);
     void remove_surface(surface_id id);
+
 } // namespace mage::gfx

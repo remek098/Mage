@@ -1,7 +1,9 @@
 #pragma once
 
+#pragma warning(disable: 4530)
 // C/Cpp headers
 
+// don't include here any headers that include std::vector or std::deque
 #include <stdint.h>
 #include <assert.h>
 #include <typeinfo>

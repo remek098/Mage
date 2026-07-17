@@ -1,6 +1,5 @@
 #pragma once
 #include "D3D12CommonHeaders.h"
-#include "D3D12Resources.h"
 
 namespace mage::gfx::d3d12 {
 
@@ -9,7 +8,9 @@ namespace mage::gfx::d3d12 {
     /// </summary>
     class d3d12_surface {
     public:
+        constexpr static DXGI_FORMAT default_backbuffer_format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
         constexpr static u32 buffer_count = 3;
+
         explicit d3d12_surface(platform::window window)
                     : _window(window)
         {
@@ -52,14 +53,14 @@ namespace mage::gfx::d3d12 {
         /// <param name="factory"></param>
         /// <param name="cmd_queue"></param>
         /// <param name="format">Specify in what format will swapchain keep images. (i.e. render-target's format).</param>
-        void create_swapchain(IDXGIFactory7* factory, ID3D12CommandQueue* cmd_queue, DXGI_FORMAT format);
+        void create_swapchain(IDXGIFactory7* factory, ID3D12CommandQueue* cmd_queue, DXGI_FORMAT format = default_backbuffer_format);
 
         void present() const;
         void resize();
 
         constexpr u32 width() const { return (u32)_viewport.Width; }
         constexpr u32 height() const { return (u32)_viewport.Height; }
-        constexpr ID3D12Resource* const get_backbuffer() { return _render_target_data[_current_backbuffer_index].resource; }
+        constexpr ID3D12Resource* backbuffer() const { return _render_target_data[_current_backbuffer_index].resource; }
         constexpr D3D12_CPU_DESCRIPTOR_HANDLE rtv() const { return _render_target_data[_current_backbuffer_index].rtv.cpu; }
         constexpr const D3D12_VIEWPORT& viewport() const { return _viewport; }
         constexpr const D3D12_RECT& scissor_rect() const { return _scissor_rect; }
@@ -108,10 +109,11 @@ namespace mage::gfx::d3d12 {
         IDXGISwapChain4*            _swapchain = nullptr;
         render_target_data          _render_target_data[buffer_count]{};
         platform::window            _window{};
+        DXGI_FORMAT                 _format = default_backbuffer_format;
         mutable u32                 _current_backbuffer_index = 0;
         u32                         _allow_tearing = 0;
         u32                         _present_flags = 0;
         D3D12_VIEWPORT              _viewport{};
         D3D12_RECT                  _scissor_rect{};
-    };
+    }; // class d3d12_surface
 }

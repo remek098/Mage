@@ -18,7 +18,7 @@ namespace mage::gfx::d3d12 {
 
         release(); // because this function can be used multiple times
 
-        ID3D12Device* const device = core::get_device();
+        auto* const device = core::device();
         assert(device);
 
         D3D12_DESCRIPTOR_HEAP_DESC desc{};
@@ -86,8 +86,8 @@ namespace mage::gfx::d3d12 {
         handle.cpu.ptr = _cpu_start.ptr + offset;
         if (is_shader_visible()) handle.gpu.ptr = _gpu_start.ptr + offset;
 
+        handle.index = index;
         DEBUG_ONLY_EXPR(handle.container = this);
-        DEBUG_ONLY_EXPR(handle.index = index);
         return handle;
     }
 
@@ -110,5 +110,130 @@ namespace mage::gfx::d3d12 {
         _deferred_free_indices[frame_index].push_back(index); // remember which descriptor handles should be removed later.
         core::set_deferred_releases_flag();
         handle = {};
+    }
+
+
+    ///////// D3D12 TEXTURE ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    d3d12_texture::d3d12_texture(d3d12_texture_init_info info) {
+        auto* const device = core::device();
+        assert(device);
+        
+        D3D12_CLEAR_VALUE* const clear_value{
+            (info.desc &&
+                (info.desc->Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET ||
+                info.desc->Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL))
+            ? &info.clear_value : nullptr
+        };
+
+        if (info.resource) {
+            assert(!info.heap);
+            _resource = info.resource;
+        }
+        else if (info.heap && info.desc) {
+            assert(!info.resource);
+            device->CreatePlacedResource(info.heap, info.allocation_info.Offset, info.desc,
+                                         info.initial_state, clear_value, IID_PPV_ARGS(&_resource));
+        }
+        else if(info.desc){
+            assert(!info.heap && !info.resource);
+            
+            DXCALL(device->CreateCommittedResource(
+                &d3dx::heap_properties.default_heap, D3D12_HEAP_FLAG_NONE, info.desc, info.initial_state,
+                clear_value, IID_PPV_ARGS(&_resource)
+            ));
+        }
+
+        assert(_resource);
+        _srv = core::srv_heap().allocate();
+        device->CreateShaderResourceView(_resource, info.srv_desc, _srv.cpu);
+        // in d3d12 there're 3 ways of creating resources, 
+        // device->CreateCommittedResource, -> creates both resource and implicit heap (big enough to contain entire resource) (resource ofc is mapped to that heap)
+        // device->CreatePlacedResource, -> creates resource that is placed in specific already existing heap (fastest to create and destroy)
+        //                                  (and also lightest available)
+        // device->CreateReservedResource -> creates resource that is reserved, and not yet mapped to any pages in a heap. 
+        //                                  (used e.g. when we're streaming resources to the GPU and are not yet used by GPU/shaders.
+    }
+
+    void d3d12_texture::release() {
+        core::srv_heap().free(_srv);
+        core::deferred_release(_resource); // used because this texture/resource might still be referenced to in one of frame buffers
+                                              // that we're working on.
+    }
+
+
+
+    ////////// RENDER TEXTURE /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    d3d12_render_texture::d3d12_render_texture(d3d12_texture_init_info info) 
+        : _texture{info}
+    {
+        assert(info.desc);
+        _mip_count = resource()->GetDesc().MipLevels;
+        assert(_mip_count && _mip_count <= d3d12_texture::max_mips);
+
+        descriptor_heap& rtv_heap = core::rtv_heap();
+        D3D12_RENDER_TARGET_VIEW_DESC desc{};
+        desc.Format = info.desc->Format;
+        desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+        desc.Texture2D.MipSlice = 0; // indicates at which mip level we will create render target view
+
+        auto* const device = core::device();
+        assert(device);
+        // for each of mip levels
+        for (u32 i = 0; i < _mip_count; ++i) {
+            _rtv[i] = rtv_heap.allocate();
+            device->CreateRenderTargetView(resource(), &desc, _rtv[i].cpu);
+            desc.Texture2D.MipSlice++; // so the next view will be created for next mip level
+        }
+    }
+
+    void d3d12_render_texture::release() {
+        for (u32 i = 0; i < _mip_count; ++i) core::rtv_heap().free(_rtv[i]);
+        _texture.release();
+        _mip_count = 0;
+    }
+    ////////// DEPTH BUFFER   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    d3d12_depth_buffer::d3d12_depth_buffer(d3d12_texture_init_info info) {
+        assert(info.desc);
+        // we will not only write, but also read from the depth buffer's texture
+        // so we need not only DSV but also SRV
+        // but unlucky for us, the format of SRV cannot be the same as format of DSV
+        // but we can create textures using TYPELESS format, and then create view that has a compatible format.
+
+        const DXGI_FORMAT dsv_format = info.desc->Format; // assume that it is the format user wants to use for DSV
+
+        D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc{};
+        if (info.desc->Format == DXGI_FORMAT_D32_FLOAT) {
+            info.desc->Format = DXGI_FORMAT_R32_TYPELESS;
+            srv_desc.Format = DXGI_FORMAT_R32_FLOAT;
+        }
+
+        // have to fill this since we're creating SRV using typeless format
+        srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;// D3D12_SRV_DIMENSION_BUFFER;
+        srv_desc.Texture2D.MipLevels = 1;
+        srv_desc.Texture2D.MostDetailedMip = 0;
+        srv_desc.Texture2D.PlaneSlice = 0;
+        srv_desc.Texture2D.ResourceMinLODClamp = 0.f;
+
+        assert(!info.srv_desc && !info.resource);
+        info.srv_desc = &srv_desc;
+        _texture = d3d12_texture(info);
+
+        D3D12_DEPTH_STENCIL_VIEW_DESC dsv_desc{};
+        dsv_desc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+        dsv_desc.Flags = D3D12_DSV_FLAG_NONE;
+        dsv_desc.Format = dsv_format;
+        dsv_desc.Texture2D.MipSlice = 0;
+
+        _dsv = core::dsv_heap().allocate();
+        
+        auto* const device = core::device();
+        assert(device);
+        device->CreateDepthStencilView(resource(), &dsv_desc, _dsv.cpu);
+    }
+
+    void d3d12_depth_buffer::release() {
+        core::dsv_heap().free(_dsv);
+        _texture.release();
     }
 }

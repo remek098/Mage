@@ -1,5 +1,6 @@
 #include "D3D12Surface.h"
 #include "D3D12Core.h"
+// #include <sstream>
 
 namespace mage::gfx::d3d12 {
     namespace {
@@ -18,7 +19,7 @@ namespace mage::gfx::d3d12 {
     } // anonymous namespace
 
 
-    void d3d12_surface::create_swapchain(IDXGIFactory7* factory, ID3D12CommandQueue* cmd_queue, DXGI_FORMAT format) {
+    void d3d12_surface::create_swapchain(IDXGIFactory7* factory, ID3D12CommandQueue* cmd_queue, DXGI_FORMAT format /*default_backbuffer_format*/) {
         assert(factory && cmd_queue);
         release();
 
@@ -26,6 +27,7 @@ namespace mage::gfx::d3d12 {
                       && _allow_tearing) {
             _present_flags = DXGI_PRESENT_ALLOW_TEARING;
         }
+        _format = format;
 
         //_allow_tearing = _present_flags = 0;
 
@@ -68,7 +70,29 @@ namespace mage::gfx::d3d12 {
     }
 
     void d3d12_surface::resize() {
+        assert(_swapchain);
+        for (u32 i = 0; i < buffer_count; ++i) {
+            core::release(_render_target_data[i].resource); // release buffers that are used
+        }
 
+        const u32 flags = _allow_tearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0ul;
+        // resize with associated window dimensions
+        DXCALL(_swapchain->ResizeBuffers(buffer_count, 0, 0, DXGI_FORMAT_UNKNOWN, flags));
+        _current_backbuffer_index = _swapchain->GetCurrentBackBufferIndex();
+
+        finalize(); // to put new RTV's in using already allocated descriptors.
+        DEBUG_ONLY_EXPR(OutputDebugString(L"::D3D12 Surface Resized.\n"));
+        
+        // if you were curious if buffers are resized to proper dimensions, you can uncomment this code and #include <sstream>
+        /*DXGI_SWAP_CHAIN_DESC desc;
+        _swapchain->GetDesc(&desc);
+        std::wstringstream wss;
+        std::wstring str;
+
+        wss << desc.BufferDesc.Width << "x" << desc.BufferDesc.Height << "\n";
+        wss >> str;
+        OutputDebugString(str.c_str());
+        OutputDebugString(L"\n");*/
     }
 
 
@@ -80,9 +104,9 @@ namespace mage::gfx::d3d12 {
             DXCALL(_swapchain->GetBuffer(i, IID_PPV_ARGS(&data.resource)));
 
             D3D12_RENDER_TARGET_VIEW_DESC desc{};
-            desc.Format = core::default_render_target_format();
+            desc.Format = _format;
             desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
-            core::get_device()->CreateRenderTargetView(data.resource, &desc, data.rtv.cpu);
+            core::device()->CreateRenderTargetView(data.resource, &desc, data.rtv.cpu);
         }
 
         DXGI_SWAP_CHAIN_DESC desc{};

@@ -1,6 +1,8 @@
 #include "D3D12Core.h"
-#include "D3D12Resources.h"
 #include "D3D12Surface.h"
+#include "D3D12Shaders.h"
+#include "D3D12GPass.h"
+#include "D3D12PostProcess.h"
 
 using namespace Microsoft::WRL;
 
@@ -17,7 +19,7 @@ namespace mage::gfx::d3d12::core {
             d3d12_command() = default;
             DISABLE_COPY_AND_MOVE(d3d12_command);
 
-            explicit d3d12_command(ID3D12Device14* const device, D3D12_COMMAND_LIST_TYPE type) {
+            explicit d3d12_command(id3d12_device* const device, D3D12_COMMAND_LIST_TYPE type) {
                 HRESULT hr = S_OK;
                 
                 D3D12_COMMAND_QUEUE_DESC desc{};
@@ -85,11 +87,14 @@ namespace mage::gfx::d3d12::core {
             /// <summary>
             /// Signal the fence with the new fence value.
             /// </summary>
-            void end_frame() {
+            void end_frame(const d3d12_surface& surface) {
                 // subbmit command list(s) for execution
                 DXCALL(_cmd_list->Close());
                 ID3D12CommandList* const cmd_lists[] { _cmd_list };
                 _cmd_queue->ExecuteCommandLists(_countof(cmd_lists), &cmd_lists[0]);
+                
+                // presenting swapchain buffer happens in lockstep with frame buffers.
+                surface.present();
 
                 u64& fence_value = _fence_value;
                 ++fence_value;
@@ -125,9 +130,9 @@ namespace mage::gfx::d3d12::core {
                 }
             }
 
-            constexpr ID3D12CommandQueue* const get_command_queue() const { return _cmd_queue; }
-            constexpr ID3D12GraphicsCommandList10* const command_list() const { return _cmd_list; }
-            constexpr u32 frame_index() const { return _frame_index; }
+            [[nodiscard]] constexpr ID3D12CommandQueue* const get_command_queue() const { return _cmd_queue; }
+            [[nodiscard]] constexpr id3d12_graphics_command_list* const command_list() const { return _cmd_list; }
+            [[nodiscard]] constexpr u32 frame_index() const { return _frame_index; }
 
 
         private:
@@ -154,7 +159,7 @@ namespace mage::gfx::d3d12::core {
             };
 
             ID3D12CommandQueue*             _cmd_queue          = nullptr;
-            ID3D12GraphicsCommandList10*    _cmd_list           = nullptr;
+            id3d12_graphics_command_list*   _cmd_list           = nullptr;
             ID3D12Fence1*                   _fence              = nullptr;
             u64                             _fence_value        = 0;
             HANDLE                          _fence_event        = nullptr;
@@ -164,10 +169,11 @@ namespace mage::gfx::d3d12::core {
 
         using surface_collection = utl::free_list<d3d12_surface>;
 // ---- list of variables in translation unit (in anonymous namespace)
-        ID3D12Device14*                     d3d_main_device = nullptr;
+        id3d12_device*                      d3d_main_device = nullptr;
         IDXGIFactory7*                      dxgi_factory = nullptr;
         d3d12_command                       gfx_command;
         surface_collection                  surfaces;
+        d3dx::d3d12_resource_barrier        resource_barriers{};
 
         // descriptor heaps
         descriptor_heap                     rtv_desc_heap{ D3D12_DESCRIPTOR_HEAP_TYPE_RTV };
@@ -181,8 +187,7 @@ namespace mage::gfx::d3d12::core {
         std::mutex                          deferred_releases_mutex{};
 
 
-        constexpr DXGI_FORMAT       render_target_format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-        constexpr D3D_FEATURE_LEVEL minimum_feature_level{ D3D_FEATURE_LEVEL_11_0 };
+        constexpr D3D_FEATURE_LEVEL         minimum_feature_level{ D3D_FEATURE_LEVEL_11_0 };
 
         bool failed_init() {
             shutdown();
@@ -331,6 +336,13 @@ namespace mage::gfx::d3d12::core {
         new (&gfx_command) d3d12_command(d3d_main_device, D3D12_COMMAND_LIST_TYPE_DIRECT);
         if (!gfx_command.get_command_queue()) return failed_init();
 
+        // initialize modules
+        if (!(shaders::initialize() && 
+              gpass::initialize() && 
+              fx::initialize())) {
+            return failed_init();
+        }
+
         NAME_D3D12_OBJECT(d3d_main_device, L"Main D3D12 Device");
         NAME_D3D12_OBJECT(rtv_desc_heap.heap(), L"RTV Descriptor Heap");
         NAME_D3D12_OBJECT(dsv_desc_heap.heap(), L"DSV Descriptor Heap");
@@ -349,7 +361,19 @@ namespace mage::gfx::d3d12::core {
             process_deferred_releases(i);
         }
 
+        // shutdown modules.
+        fx::shutdown();
+        gpass::shutdown();
+        shaders::shutdown();
+
         release(dxgi_factory);
+
+        // NOTE: some modules free their descriptors when they shutdown.
+        //          We process those by calling process_deferred_free once more.
+        rtv_desc_heap.process_deferred_free(0);
+        dsv_desc_heap.process_deferred_free(0);
+        srv_desc_heap.process_deferred_free(0);
+        uav_desc_heap.process_deferred_free(0);
 
         rtv_desc_heap.release();
         dsv_desc_heap.release();
@@ -381,14 +405,13 @@ namespace mage::gfx::d3d12::core {
     }
 
 
-    ID3D12Device* const get_device() { return d3d_main_device; }
+    id3d12_device* const device() { return d3d_main_device; }
 
     descriptor_heap& rtv_heap() {return rtv_desc_heap;}
     descriptor_heap& dsv_heap() {return dsv_desc_heap;}
     descriptor_heap& srv_heap() {return srv_desc_heap;}
     descriptor_heap& uav_heap() { return uav_desc_heap; }
 
-    DXGI_FORMAT default_render_target_format() { return render_target_format; }
 
     u32 get_current_frame_index() { return gfx_command.frame_index(); }
 
@@ -399,7 +422,7 @@ namespace mage::gfx::d3d12::core {
     surface create_surface(platform::window window) {
         // NOTE: not the best solution, will have to implement free-list and use it there.
         surface_id id{ surfaces.add(window) };
-        surfaces[id].create_swapchain(dxgi_factory, gfx_command.get_command_queue(), render_target_format);
+        surfaces[id].create_swapchain(dxgi_factory, gfx_command.get_command_queue());
         
         return surface{ id };
     }
@@ -420,11 +443,13 @@ namespace mage::gfx::d3d12::core {
     u32 surface_height(surface_id id) {
         return surfaces[id].height();
     }
+
+
     void render_surface(surface_id id) {
         // wait for the GPU to finish with the command allcator and reset the allocator once the GPU is done with it.
         // This frees the memory that was used to store commands.
         gfx_command.begin_frame();
-        ID3D12GraphicsCommandList10* cmd_list = gfx_command.command_list();
+        id3d12_graphics_command_list* cmd_list = gfx_command.command_list();
 
         const u32 frame_index = get_current_frame_index();
         if (deferred_releases_flag[frame_index]) {
@@ -432,14 +457,51 @@ namespace mage::gfx::d3d12::core {
         }
 
         const d3d12_surface& surface = surfaces[id];
+        ID3D12Resource* const current_back_buffer = surface.backbuffer();
 
-        // presenting swapchain buffer happens in lockstep with frame buffers.
-        surface.present();
+
+        d3d12_frame_info frame_info{ surface.width(), surface.height() };
+        gpass::set_size({ frame_info.surface_width, frame_info.surface_height });
+
+        d3dx::d3d12_resource_barrier& barriers = resource_barriers;
+        
+        
         // record commands
-        // ...
+        ID3D12DescriptorHeap* const heaps[]{ srv_desc_heap.heap() };
+        cmd_list->SetDescriptorHeaps(1, &heaps[0]);
 
+        cmd_list->RSSetViewports(1, &surface.viewport());
+        cmd_list->RSSetScissorRects(1, &surface.scissor_rect());
+
+        // depth prepass
+        gpass::add_transitions_for_depth_prepass(barriers);
+        barriers.apply(cmd_list);
+        gpass::set_render_targets_for_depth_prepass(cmd_list);
+        gpass::depth_prepass(cmd_list, frame_info);
+
+        // geometry and lighting pass
+        gpass::add_transitions_for_gpass(barriers);
+        barriers.apply(cmd_list);
+        gpass::set_render_targets_for_gpass(cmd_list);
+        gpass::render(cmd_list, frame_info);
+
+        d3dx::transition_resource(cmd_list, current_back_buffer,
+                                  D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+        // Post-process
+        gpass::add_transitions_for_post_process(barriers);
+        barriers.apply(cmd_list);
+
+        // will write to the current backbuffer, so backbuffer is a render target.
+        fx::post_process(cmd_list, surface.rtv());
+
+        // after post process
+        d3dx::transition_resource(cmd_list, current_back_buffer,
+                                  D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+        
+        // presenting swapchain buffer happens in lockstep with frame buffers.
+        //surface.present();
         // done recording commands. Now execute commands, signal and increment the fence value for next frame.
-        gfx_command.end_frame();
+        gfx_command.end_frame(surface);
     }
 
 } // namespace mage::gfx::d3d12::core

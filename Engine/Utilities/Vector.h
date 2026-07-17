@@ -32,6 +32,7 @@ namespace mage::utl {
             resize(count, value);
         }
 
+        // works on windows only as far as I know (because of _Is_iterator_v)
         template<typename it, typename = std::enable_if_t<std::_Is_iterator_v<it>>>
         constexpr explicit vector(it first, it last) {
             // when it is not an iterator type, enable_if results in template substitution failure,
@@ -54,7 +55,7 @@ namespace mage::utl {
         /// <para/> The original vector will be empty after move.
         /// </summary>
         /// <param name="o"></param>
-        constexpr vector(const vector&& o) 
+        constexpr vector(vector&& o) 
             : _capacity{o._capacity}, _size{o._size}, _data{o._data}
         {
             o.reset();
@@ -140,7 +141,8 @@ namespace mage::utl {
         /// </summary>
         /// <param name="new_size"></param>
         constexpr void resize(u64 new_size) {
-            static_assert(std::is_default_constructible_v<T>, "Type must be default-constructable.");
+            // for only windows we could just use std::is_copy_constructible_v<T>
+            static_assert(std::is_default_constructible<T>::value, "Type must be default-constructable.");
 
             if (new_size > _size) {
                 reserve(new_size);
@@ -165,7 +167,8 @@ namespace mage::utl {
         /// <param name="new_size"></param>
         /// <param name="value"></param>
         constexpr void resize(u64 new_size, const T& value) {
-            static_assert(std::is_copy_constructible_v<T>, "Type must be copy-constructable.");
+            // for only windows we could just use std::is_copy_constructible_v<T>
+            static_assert(std::is_copy_constructible<T>::value, "Type must be copy-constructable.");
 
             if (new_size > _size) {
                 reserve(new_size);

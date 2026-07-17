@@ -4,6 +4,12 @@
 
 namespace mage::gfx {
     namespace {
+        // Defines where the compiled engine shaders file is located for each one of the supported graphics API.
+        constexpr const char* engine_shader_paths[]{
+            ".\\shaders\\d3d12\\shaders.bin",
+            // ".\\shaders\\vulkan\\shaders.bin", etc if you ever wanted to add other graphics API in future
+        };
+
         platform_interface gfx_interface{};
     } // anonymous namespace
 
@@ -16,6 +22,7 @@ namespace mage::gfx {
             return false;
         }
 
+        assert(gfx_interface.platform == platform);
         return true;
     }
 
@@ -24,9 +31,18 @@ namespace mage::gfx {
     }
 
     void shutdown() {
-        gfx_interface.shutdown();
+        // unnecessary if application shuts down only if initialization succedded
+        if (gfx_interface.platform != (gfx_platform)-1) gfx_interface.shutdown();
     }
 
+
+    const char* get_engine_shaders_path() {
+        return engine_shader_paths[(u32)gfx_interface.platform];
+    }
+
+    const char* get_engine_shaders_path(gfx_platform platform) {
+        return engine_shader_paths[(u32)platform];
+    }
 
     surface create_surface(platform::window window) {
         return gfx_interface.surface.create(window);

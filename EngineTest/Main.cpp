@@ -15,14 +15,28 @@
 
 #ifdef _WIN64
 #include <Windows.h>
+#include <filesystem>
+
+// TODO: duplicate
+std::filesystem::path set_current_directory_to_exe_path() {
+    // set the working directory to the .exe path
+    wchar_t path[MAX_PATH];
+    const uint32_t length = GetModuleFileName(0, &path[0], MAX_PATH);
+    if (!length || GetLastError() == ERROR_INSUFFICIENT_BUFFER) return {};
+    std::filesystem::path p{ path };
+    std::filesystem::current_path(p.parent_path());
+    return std::filesystem::current_path();
+}
 
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #if _DEBUG
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 #endif
-    EngineTest test{};
+    
+    set_current_directory_to_exe_path();
 
+    EngineTest test{};
     if ( test.initialize() ) {
         MSG msg;
         bool is_running = true;
@@ -37,9 +51,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             }
             test.run();
         }
+        // NOTE: it makes sense to shutdown only if initialization was complete.
+        // but if initialization would allocate any resources that need to be released during shutdown before it can return false,
+        // then we would have to move shutdown outside if block.
+        test.shutdown();
     }
 
-    test.shutdown();
     return 0;
 }
 

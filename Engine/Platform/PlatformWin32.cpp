@@ -1,8 +1,8 @@
+#ifdef _WIN64
 #include "Platform.h"
 #include "PlatformTypes.h"
 
 namespace mage::platform {
-#ifdef _WIN64
 
     namespace {
         // LPCWSTR main_class_name = L"MageWindow";
@@ -48,9 +48,9 @@ namespace mage::platform {
         //    available_slots.emplace_back(id);
         //}
         //// -------------------------------------------------------------------------------------
+        bool resized = false;
 
         window_info& get_window_from_id(window_id id) {
-            assert(id < windows.size());
             assert(windows[id].hwnd);
             return windows[id];
         }
@@ -61,40 +61,41 @@ namespace mage::platform {
         }
 
         LRESULT CALLBACK internal_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
-            window_info* info{ nullptr };
             switch ( msg ) {
+            case WM_NCCREATE:
+            {
+                // Put the window id in the user data field of window's data buffer.
+                // clearing it in case we try to register same window class again -> WeWindows stuff KappaChungusDeluxe
+                DEBUG_ONLY_EXPR(SetLastError(0));
+
+                // set long_ptr so that we can access window_id from internal_window_proc()
+                const window_id id{ windows.add() };
+                windows[id].hwnd = hwnd;
+                SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR)id);
+                assert(GetLastError() == 0);
+                break;
+            }
+
             case WM_DESTROY:
                 get_window_from_handle(hwnd).is_closed = true;
                 break;
 
-            case WM_EXITSIZEMOVE:
-                info = &get_window_from_handle(hwnd);
-                break;
-
             // handled mainly because Maximizing a window doesn't proc WM_EXITSIZEMOVE message
             case WM_SIZE:
-                if ( wparam == SIZE_MAXIMIZED ) {
-                    info = &get_window_from_handle(hwnd);
-                }
+                resized = (wparam != SIZE_MINIMIZED);
                 break;
             
-            // handled because going back to normal state of a window doesn't proc other messages above
-            case WM_SYSCOMMAND:
-                if ( wparam == SC_RESTORE ) { // when restoring a window
-                    info = &get_window_from_handle(hwnd);
-                }
-                break;
-
             default:
                 break;
             }
 
             // if info is not null, we might check for updates.
-            if ( info ) {
-                assert(info->hwnd);
+            if ( resized && GetAsyncKeyState(VK_LBUTTON) >= 0 ) {
+                window_info& info = get_window_from_handle(hwnd);
+                assert(info.hwnd);
                 // if something happened to size, we update appropriate area/rect for us to read about the changes
-                GetClientRect(info->hwnd, info->is_fullscreen ? &info->fullscreen_area : &info->client_area);
-                
+                GetClientRect(info.hwnd, info.is_fullscreen ? &info.fullscreen_area : &info.client_area);
+                resized = false;
             }
 
             LONG_PTR long_ptr = GetWindowLongPtr(hwnd, 0);
@@ -191,7 +192,7 @@ namespace mage::platform {
 
     } // anonymous namespace
 
-    window create_window(const window_init_info* const init_info /* = nullptr */) {
+    window create_window(const window_init_info* init_info /* = nullptr */) {
         window_proc callback = init_info ? init_info->callback : nullptr;
         window_handle parent = init_info ? init_info->parent : nullptr;
 
@@ -257,14 +258,7 @@ namespace mage::platform {
         );
 
         if ( info.hwnd ) {
-            // clearing it in case we try to register same window class again -> WeWindows stuff KappaChungusDeluxe
             DEBUG_ONLY_EXPR(SetLastError(0));
-
-            // set long_ptr so that we can access window_id from internal_window_proc()
-            const window_id id{ windows.add(info) };
-            SetWindowLongPtr(info.hwnd, GWLP_USERDATA, (LONG_PTR)id);
-
-
             // set in the "extra" bytes the pointer to the window callback function -> will handle messages for window
             // NOTE: matches the way we get a long_ptr inside internal_window_proc()
             if(callback) SetWindowLongPtr(info.hwnd, 0, (LONG_PTR)callback);
@@ -272,6 +266,9 @@ namespace mage::platform {
 
             ShowWindow(info.hwnd, SW_SHOWNORMAL);
             UpdateWindow(info.hwnd);
+
+            window_id id{ (id::id_type)GetWindowLongPtr(info.hwnd, GWLP_USERDATA) };
+            windows[id] = info;
             return window{ id };
         }
 
@@ -283,57 +280,10 @@ namespace mage::platform {
         DestroyWindow(info.hwnd);
         windows.remove(id);
     }
-
-#else
-#error "You gotta implement at least one platform bruh"
-#endif // _WIN64
-
-
-
-    void window::set_fullscreen(bool is_fullscreen) const {
-        assert(is_valid());
-        set_window_fullscreen(_id, is_fullscreen);
-    }
-
-    bool window::is_fullscreen() const {
-        assert(is_valid());
-        return is_window_fullscreen(_id);
-    }
-
-    void* window::handle() const {
-        assert(is_valid());
-        return get_window_handle(_id);
-
-    }
-
-    void window::set_caption(const wchar_t* caption) const {
-        assert(is_valid());
-        set_window_caption(_id, caption);
-    }
-
-    math::u32vec4 window::size() const {
-        assert(is_valid());
-        return get_window_size(_id);
-    }
-
-    void window::resize(u32 width, u32 height) const {
-        assert(is_valid());
-        resize_window(_id, width, height);
-    }
-
-    u32 window::width() const {
-        math::u32vec4 s = size();
-        return s.z - s.x; // windows right - windows left
-    }
-
-    u32 window::height() const {
-        math::u32vec4 s = size();
-        return s.w - s.y; // window bottom - window top
-    }
-
-    bool window::is_closed() const {
-        assert(is_valid());
-        return is_window_closed(_id);
-    }
+    
 
 }
+
+#include "IncludeWindowCpp.h"
+
+#endif // _WIN64

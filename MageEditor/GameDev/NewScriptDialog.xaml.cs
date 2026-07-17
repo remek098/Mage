@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -59,14 +60,14 @@ namespace {1} {{
 
         private static string GetNamespaceFromProjectName()
         {
-            var project_name = Project.Current?.Name;
+            var project_name = Project.Current?.Name.Trim();
             if (string.IsNullOrEmpty(project_name)) return string.Empty; // basically checking to get annoying warnings away
                                                                          // if that was the case, then I guess the code for our script would reside within anonymous namespace
                                                                          // but it shouldn't happen since Project.Current is defined as follows in Project.cs
                                                                          // public static Project? Current => Application.Current.MainWindow.DataContext as Project;
                                                                          // and also if Project.Current would be null, that means we never loaded any project
                                                                          // so we aren't even able to be there in first place.
-            project_name = project_name.Replace(' ', '_'); // replace spaces with underscore
+            project_name = Regex.Replace(project_name, @"[^A-Za-z0-9_]", ""); // reject the characters that are not A-Z OR a-z OR 0-9 or _
             return project_name;
         }
 
@@ -76,12 +77,12 @@ namespace {1} {{
             var name = scriptName.Text.Trim();
             var path = scriptPath.Text.Trim();
             string errorMsg = string.Empty;
+            var nameRegex = new Regex(@"^[A-Za-z_][A-Za-z0-9_]*$");
 
-            if(string.IsNullOrEmpty(name))
-            {
+            if (string.IsNullOrEmpty(name)) {
                 errorMsg = "Type in a script name.";
             }
-            else if (name.IndexOfAny(Path.GetInvalidFileNameChars()) != -1 || name.Any(x => char.IsWhiteSpace(x)))
+            else if (!nameRegex.IsMatch(name))
             {
                 errorMsg = "Invalid character(s) used in script name.";
             }
