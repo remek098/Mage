@@ -37,9 +37,9 @@ namespace MageEditor.Utilities
     class DelayedEventTimerArgs : EventArgs
     {
         public bool RepeatEvent { get; set; }
-        public object? Data { get; set; }
+        public IEnumerable<object> Data { get; set; }
 
-        public DelayedEventTimerArgs(object? data)
+        public DelayedEventTimerArgs(IEnumerable<object> data)
         {
             Data = data;
         }
@@ -49,15 +49,17 @@ namespace MageEditor.Utilities
     {
         private readonly DispatcherTimer _timer;
         private readonly TimeSpan _delay;
+        private readonly List<object> _data = new List<object>();
         private DateTime _lastEventTime = DateTime.Now;
-        private object? _data;
 
         // DelayedEvent might call an event again after _delay time
         public event EventHandler<DelayedEventTimerArgs> Triggered;
 
         public void Trigger(object? data = null)
         {
-            _data = data;
+            if(data != null) {
+                _data.Add(data);
+            }
             _lastEventTime = DateTime.Now;
             _timer.IsEnabled = true;
         }
@@ -71,6 +73,9 @@ namespace MageEditor.Utilities
             if ((DateTime.Now - _lastEventTime) < _delay) return;
             var eventArgs = new DelayedEventTimerArgs(_data);
             Triggered?.Invoke(this, eventArgs);
+            if(!eventArgs.RepeatEvent) {
+                _data.Clear();
+            }
             _timer.IsEnabled = eventArgs.RepeatEvent;
         }
 

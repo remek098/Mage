@@ -67,7 +67,6 @@ namespace {1} {{
                                                                          // public static Project? Current => Application.Current.MainWindow.DataContext as Project;
                                                                          // and also if Project.Current would be null, that means we never loaded any project
                                                                          // so we aren't even able to be there in first place.
-            project_name = Regex.Replace(project_name, @"[^A-Za-z0-9_]", ""); // reject the characters that are not A-Z OR a-z OR 0-9 or _
             return project_name;
         }
 
@@ -198,11 +197,12 @@ namespace {1} {{
             }
 
             string[] files = new string[] { cpp_file, h_file };
-            for(int i = 0; i < 3; ++i)
-            {
-                if (!VisualStudio.AddFilesToSolution(solution, projectName, files)) System.Threading.Thread.Sleep(1000);
-                else break;
-            }
+            //for(int i = 0; i < 3; ++i)
+            //{
+            //    if (!VisualStudio.AddFilesToSolution(solution, projectName, files)) System.Threading.Thread.Sleep(1000);
+            //    else break;
+            //}
+            VisualStudio.AddFilesToSolution(solution, projectName, files);
 
         }
 

@@ -222,7 +222,7 @@ namespace MageEditor.GameDev
                     {
                         // doing SaveAll in case visual studio would crash during adding files.
                         if (!_vsInscance.Solution.IsOpen) _vsInscance.Solution.Open(solution);
-                        else _vsInscance.ExecuteCommand("File.SaveAll");
+                        // else _vsInscance.ExecuteCommand("File.SaveAll");
 
                         foreach (EnvDTE.Project project in _vsInscance.Solution.Projects) {
                             // if we found a project that at the very least contains the name of our project
@@ -233,7 +233,7 @@ namespace MageEditor.GameDev
                                 }
                             }
                         }
-
+                        _vsInscance.ExecuteCommand("File.SaveAll");
 
 
                         // open added cpp file(s)
@@ -331,20 +331,10 @@ namespace MageEditor.GameDev
 
             CallOnSTAThread(() =>
             {
-                if (_vsInscance != null && !_vsInscance.Solution.IsOpen) _vsInscance.Solution.Open(project.Solution);
-                if(_vsInscance != null)
-                {
-                    _vsInscance.MainWindow.Visible = showVSWindow;
-                    // NOTE: if() avoids closing visual studio window when we press a keyboard shortcut for building a project in editor.
-                    // if (_vsInscance.MainWindow.Visible == false) _vsInscance.MainWindow.Visible = showVSWindow;
-
-                    // NOTE: Don't add events like so, because we avoid garbage collection and reference COM object, therefore we use 
-                    // SubscribeBuildEvents() when creating _vsInstance in OpenVisualStudio()
-
-                    // _vsInscance.Events.BuildEvents.OnBuildProjConfigBegin += OnBuildProjectBegin;
-                    // _vsInscance.Events.BuildEvents.OnBuildProjConfigDone += OnBuildProjectDone;
-                    SubscribeBuildEvents();
-                }
+                // if (_vsInscance != null && !_vsInscance.Solution.IsOpen) _vsInscance.Solution.Open(project.Solution);
+                _vsInscance?.Solution.Open(project.Solution);
+                _vsInscance?.MainWindow.Visible = showVSWindow;
+                SubscribeBuildEvents();
             });
 
             var configName = GetConfigurationName(buildConfig);

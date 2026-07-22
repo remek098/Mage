@@ -1,5 +1,7 @@
-﻿using MageEditor.GameProject;
+﻿using MageEditor.Content;
+using MageEditor.GameProject;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Windows;
@@ -90,7 +92,10 @@ namespace MageEditor
             else 
             {
                 Project.Current?.Unload();
-                DataContext = projectBrowser.DataContext;
+                var project = projectBrowser.DataContext as Project;
+                Debug.Assert(project != null);
+                AssetRegistery.Reset(project.ContentPath);
+                DataContext = project;
             }
         }
     }
