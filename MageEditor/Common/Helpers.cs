@@ -59,6 +59,8 @@ namespace MageEditor
             return false;
         }
 
+        public static bool IsDirectory(this FileInfo info) => info.Attributes.HasFlag(FileAttributes.Directory);
+
         public static bool IsOlder(this DateTime date, DateTime other) => date < other;
 
         public static string SanitizeFileName(string name)

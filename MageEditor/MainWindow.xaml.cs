@@ -94,7 +94,7 @@ namespace MageEditor
                 Project.Current?.Unload();
                 var project = projectBrowser.DataContext as Project;
                 Debug.Assert(project != null);
-                AssetRegistery.Reset(project.ContentPath);
+                ContentWatcher.Reset(project.ContentPath, project.Path);
                 DataContext = project;
             }
         }

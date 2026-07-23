@@ -40,22 +40,7 @@ namespace MageEditor.Content
     {
         // because we're calling GetFolderContent() method on both UI and non-UI threads.
         // by _refreshTimer with Refresh() method and in SelectedFolder property setter (on UI thread)
-        public static readonly object _lock = new object();
-
-        // if we don't get notified for 250 seconds, we can proceed to handle the event(s).
         private static readonly DelayedEventTimer _refreshTimer = new DelayedEventTimer(TimeSpan.FromMicroseconds(250));
-        private static readonly FileSystemWatcher _contentWatcher = new FileSystemWatcher() {
-            IncludeSubdirectories = true,
-            Filter = "",
-            NotifyFilter = NotifyFilters.CreationTime |
-                           NotifyFilters.DirectoryName |
-                           NotifyFilters.FileName |
-                           NotifyFilters.LastWrite
-        };
-
-
-        public static string _cacheFilePath = string.Empty;
-        private static readonly Dictionary<string, ContentInfo> _contentInfoCache = new Dictionary<string, ContentInfo>();
 
 
         public string ContentFolder { get; }
@@ -72,14 +57,25 @@ namespace MageEditor.Content
                 if( _selectedFolder != value ) {
                     _selectedFolder = value;
                     if(!string.IsNullOrEmpty(_selectedFolder)) {
-                        GetFolderContent();
+                        _ = GetFolderContent();
                     }
                     OnPropertyChanged(nameof(SelectedFolder));
                 }   
             }
         }
+        private void OnContentModified(object? sender, ContentModifiedEventArgs e)
+        {
+            if (Path.GetDirectoryName(e.FullPath) != SelectedFolder) return;
+            _refreshTimer.Trigger();
+        }
 
-        private async void GetFolderContent()
+        private void Refresh(object? sender, DelayedEventTimerArgs e)
+        {
+            // happens when _refreshTimer triggers an event
+            _ = GetFolderContent();
+        }
+
+        private async Task GetFolderContent()
         {
             var folderContent = new List<ContentInfo>();
             await Task.Run(() =>
@@ -101,24 +97,11 @@ namespace MageEditor.Content
                     folderContent.Add(new ContentInfo(dir));
                 }
 
-                // get files
-                lock(_lock) {
-                    foreach(var file in Directory.GetFiles(path, $"*{Asset.AssetFileExtension}")) {
-                        var fileInfo = new FileInfo(file);
-
-                        if(!_contentInfoCache.ContainsKey(file) ||
-                            _contentInfoCache[file].DateModified.IsOlder(fileInfo.LastWriteTime)) {
-                            // if the file is not already in the cache or if it has been updated,
-                            // we got to reload it's information
-                            var info = AssetRegistery.GetAssetInfo(file) ?? Asset.GetAssetInfo(file);
-                            Debug.Assert(info != null);
-                            _contentInfoCache[file] = new ContentInfo(file, info.Icon);
-                        }
-
-                        Debug.Assert(_contentInfoCache.ContainsKey(file));
-                        folderContent.Add(_contentInfoCache[file]);
-                    }
-                } // _lock
+                // gather information about files and directories in Content.
+                foreach(var file in Directory.GetFiles(path, $"*{Asset.AssetFileExtension}")) {
+                    var fileInfo = new FileInfo(file);
+                    folderContent.Add(ContentInfoCache.Add(file));
+                }
             }
             catch (Exception ex) {
                 Debug.WriteLine(ex.Message);
@@ -126,92 +109,11 @@ namespace MageEditor.Content
             return folderContent;
         }
 
-        private void Refresh(object? sender, DelayedEventTimerArgs e)
-        {
-            // happens when _refreshTimer triggers an event
-            GetFolderContent();
-        }
-
-        private async void OnContentModified(object sender, FileSystemEventArgs e)
-        {
-            if (Path.GetDirectoryName(e.FullPath) != SelectedFolder) return;
-
-            await Application.Current.Dispatcher.BeginInvoke(new Action(() =>
-            {
-                _refreshTimer.Trigger(e);
-            }));
-        }
-        
-        private static void SaveInfoCache(string file)
-        {
-            lock(_lock) {
-                using var writer = new BinaryWriter(File.Open(file, FileMode.Create, FileAccess.Write));
-                writer.Write(_contentInfoCache.Keys.Count); // numEntries
-                foreach(var key in _contentInfoCache.Keys) {
-                    var info = _contentInfoCache[key];
-
-                    writer.Write(key); // assetFile
-                    writer.Write(info.DateModified.ToBinary());
-                    // NOTE: if there's no icon, we will write empty array into binary cache info file.
-                    //       and we need to remember that empty array of byte type will be written to binary file,
-                    //       which means during load we have to convert it back to null (if iconSize == 0)
-                    writer.Write(info.Icon?.Length ?? 0); // icon size -> Int32
-                    writer.Write(info.Icon ?? Array.Empty<byte>());
-                }
-            }
-        }
-
-        private static void LoadInfoCache(string file)
-        {
-            if (!File.Exists(file)) return;
-            try {
-                lock(_lock) {
-                    using var reader = new BinaryReader(File.Open(file,FileMode.Open, FileAccess.Read));
-                    var numEntries = reader.ReadInt32();
-                    _contentInfoCache.Clear();
-
-                    for(int i = 0; i < numEntries; ++i) {
-                        var assetFile = reader.ReadString();
-                        var date = DateTime.FromBinary(reader.ReadInt64());
-                        var iconSize = reader.ReadInt32();
-                        var icon = iconSize > 0 ? reader.ReadBytes(iconSize) : (byte[]?)null;
-
-                        if(iconSize < 0) {
-                            throw new InvalidDataException("invalid icon size in cache.");
-                        }
-
-                        if (File.Exists(assetFile)) {
-                            _contentInfoCache[assetFile] = new ContentInfo(assetFile, icon, null, date);
-                        }
-                    }
-                }
-            }
-            catch (Exception ex) {
-                Debug.WriteLine(ex.Message);
-                Logger.Log(MessageType.Warning, "Failed to read Content Browser's cache file.");
-                _contentInfoCache.Clear();
-            }
-        }
-
 
         public void Dispose()
         {
-            //_contentWatcher.EnableRaisingEvents = false;
-
-            //_contentWatcher.Changed -= OnContentModified;
-            //_contentWatcher.Created -= OnContentModified;
-            //_contentWatcher.Deleted -= OnContentModified;
-            //_contentWatcher.Renamed -= OnContentModified;
-
-            //_refreshTimer.Triggered -= Refresh;
-
-
-            ((IDisposable)_contentWatcher).Dispose();
-            // _contentWatcher.Dispose();
-            if (!string.IsNullOrEmpty(_cacheFilePath)) {
-                SaveInfoCache(_cacheFilePath);
-                _cacheFilePath = string.Empty;
-            }
+            ContentWatcher.ContentModified -= OnContentModified;
+            ContentInfoCache.Save(); // only writes to cache file, if it contains new information.
         }
 
         public ContentBrowser(Project project)
@@ -224,18 +126,7 @@ namespace MageEditor.Content
             SelectedFolder = contentFolder;
             FolderContent = new ReadOnlyObservableCollection<ContentInfo>(_folderContent);
 
-            if(string.IsNullOrEmpty(_cacheFilePath)) {
-                _cacheFilePath = $@"{project.Path}.Mage\ContentInfoCache.bin";
-                LoadInfoCache(_cacheFilePath);
-            }
-
-            _contentWatcher.Path = contentFolder;
-            _contentWatcher.Changed += OnContentModified;
-            _contentWatcher.Created += OnContentModified;
-            _contentWatcher.Deleted += OnContentModified;
-            _contentWatcher.Renamed += OnContentModified;
-            _contentWatcher.EnableRaisingEvents = true;
-
+            ContentWatcher.ContentModified += OnContentModified;
             _refreshTimer.Triggered += Refresh;
         }
 

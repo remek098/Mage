@@ -14,18 +14,9 @@ namespace MageEditor.Content
     /// </summary>
     static class AssetRegistery
     {
-        // if we don't get notified for 250 seconds, we can proceed to handle the event(s).
-        private static readonly DelayedEventTimer _refreshTimer = new DelayedEventTimer(TimeSpan.FromMicroseconds(250));
         private static readonly Dictionary<string, AssetInfo> _assetDictionary = new Dictionary<string, AssetInfo>();
         private static readonly ObservableCollection<AssetInfo> _assets = new ObservableCollection<AssetInfo>();
-        private static readonly FileSystemWatcher _contentWatcher = new FileSystemWatcher() {
-            IncludeSubdirectories = true,
-            Filter = "",
-            NotifyFilter = NotifyFilters.CreationTime |
-                           NotifyFilters.DirectoryName |
-                           NotifyFilters.FileName |
-                           NotifyFilters.LastWrite
-        };
+
 
         public static ReadOnlyObservableCollection<AssetInfo> Assets { get; } = new ReadOnlyObservableCollection<AssetInfo>(_assets);
         private static void RegisterAllAssets(string path)
@@ -63,20 +54,18 @@ namespace MageEditor.Content
             }
         }
 
-        public static void Clear()
-        {
-            _contentWatcher.EnableRaisingEvents = false;
-            _assetDictionary.Clear();
-            _assets.Clear();
-        }
-
+        
         public static void Reset(string contentFolder)
         {
-            Clear();
+            ContentWatcher.ContentModified -= OnContentModified;
+
+            _assetDictionary.Clear();
+            _assets.Clear();
+        
             Debug.Assert(Directory.Exists(contentFolder));
             RegisterAllAssets(contentFolder);
-            _contentWatcher.Path = contentFolder;
-            _contentWatcher.EnableRaisingEvents = true;
+
+            ContentWatcher.ContentModified += OnContentModified;
         }
 
         private static void UnregisterAsset(string file)
@@ -88,45 +77,22 @@ namespace MageEditor.Content
         }
 
 
-        private static async void OnContentModified(object sender, FileSystemEventArgs e)
+        private static void OnContentModified(object? sender, ContentModifiedEventArgs e)
         {
-            if (Path.GetExtension(e.FullPath) != Asset.AssetFileExtension) return;
-            // NOTE: due to the fact that this function can be called by other threads, we need to put 
-            // anything that can modify our Collection on the UI (aka application's thread)
-            await Application.Current.Dispatcher.BeginInvoke(new Action(() =>
-            {
-                _refreshTimer.Trigger(e);
-            }));
-        }
-        private static void Refresh(object? sender, DelayedEventTimerArgs e)
-        {
-            foreach(var item in e.Data) {
-                if (!(item is FileSystemEventArgs eventArgs)) continue;
-
-                if(eventArgs.ChangeType == WatcherChangeTypes.Deleted) {
-                    UnregisterAsset(eventArgs.FullPath);
-                }
-                else {
-                    RegisterAsset(eventArgs.FullPath);
-                    if(eventArgs.ChangeType == WatcherChangeTypes.Renamed) {
-                        _assetDictionary.Keys.Where(key => !File.Exists(key)).ToList().ForEach(file => UnregisterAsset(file));
-                    }
-                }
+            // recursively register all assets
+            if (ContentHelper.IsDirectory(e.FullPath)) {
+                RegisterAllAssets(e.FullPath);
             }
+            else if (File.Exists(e.FullPath)) {
+                RegisterAsset(e.FullPath);
+            }
+
+            // after recursion unregister all assets that don't exist
+            _assets.Where(x => !File.Exists(x.FullPath)).ToList().ForEach(x => UnregisterAsset(x.FullPath));
         }
+        
 
         public static AssetInfo? GetAssetInfo(string file) => _assetDictionary.ContainsKey(file) ? _assetDictionary[file] : null;
         public static AssetInfo? GetAssetInfo(Guid guid) => _assets.FirstOrDefault(x => x.Guid == guid);
-
-        static AssetRegistery()
-        {
-            _contentWatcher.Changed += OnContentModified;
-            _contentWatcher.Created += OnContentModified;
-            _contentWatcher.Deleted += OnContentModified;
-            _contentWatcher.Renamed += OnContentModified;
-
-            _refreshTimer.Triggered += Refresh;
-        }
-
     }
 }
