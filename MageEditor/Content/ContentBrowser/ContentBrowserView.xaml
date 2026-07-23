@@ -8,6 +8,8 @@
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
     <UserControl.Resources>
+        <local:DataSizeToStringConverter x:Key="dataSizeToStringConverter"/>
+
         <Style x:Key="SmallIconStyle" TargetType="{x:Type Image}">
             <Setter Property="Source" Value="{Binding IconSmall}"/>
             <Style.Triggers>
@@ -225,15 +227,69 @@
             </GridViewColumn>
 
             <!-- File size -->
-            <GridViewColumn DisplayMemberBinding="{Binding Size}">
+            <GridViewColumn DisplayMemberBinding="{Binding Size, Converter={StaticResource dataSizeToStringConverter}}">
                 <GridViewColumn.Header>
                     <GridViewColumnHeader Tag="Size" Content="Size"/>
                 </GridViewColumn.Header>
 
-                
+
             </GridViewColumn>
 
-        </GridView>    
+        </GridView>
+
+
+        <!-- To understand more refer to: https://learn.microsoft.com/en-us/dotnet/desktop/wpf/controls/how-to-create-a-custom-view-mode-for-a-listview 
+            for some wierd ahh Microslop reasons Style for tileView has to be in MageEditor/Themes/Generic.xaml 
+             figure why \_(:)_/; Probably has to do with some sort of preloading by WPF so it knows what default style to apply 
+             Though strange af, since I was able to hold everything under MageEditor/Dictionaries/ColorTemplates.xaml -->
+        <DataTemplate x:Key="tileTemplate">
+            <StackPanel Width="96" HorizontalAlignment="Center" Margin="-4,0,0,0">
+                <Image Style="{StaticResource LargeIconStyle}" Width="90" HorizontalAlignment="Center"/>
+                <TextBlock Text="{Binding FileName}" TextTrimming="CharacterEllipsis" TextWrapping="Wrap"
+                           Foreground="{StaticResource Editor.FontBrush}" HorizontalAlignment="Center"
+                           Margin="2,0" MaxHeight="60"/>
+            </StackPanel>
+        </DataTemplate>
+        
+        <local:PlainView x:Key="tileView" ItemTemplate="{StaticResource tileTemplate}" ItemWidth="100">
+            <local:PlainView.ItemContainerStyle>
+                <Style TargetType="{x:Type ListBoxItem}" BasedOn="{StaticResource ListBoxItemStyleDefault}">
+                    <EventSetter Event="MouseDoubleClick" Handler="OnContent_Item_MouseDoubleClick"/>
+                    <EventSetter Event="KeyDown" Handler="OnContent_Item_KeyDown"/>
+                </Style>
+            </local:PlainView.ItemContainerStyle>
+        </local:PlainView>
+
+        <Style TargetType="{x:Type ToggleButton}" x:Key="ListViewToggleButtonStyle">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="{StaticResource Editor.Window.GrayBrush4}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="2"/>
+            <Setter Property="Margin" Value="5,0"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="ToolTip" Value="Grid View"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ToggleButton}">
+                        <Border x:Name="border" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                                Background="{TemplateBinding Background}" SnapsToDevicePixels="True">
+                            <Image x:Name="image" Source="pack://application:,,,/Resources/ContentBrowser/GridView.png"
+                                   Width="16" Opacity="0.8"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter Property="Source" TargetName="image" Value="pack://application:,,,/Resources/ContentBrowser/TileView.png"/>
+                                <Setter Property="ToolTip" TargetName="border" Value="Tile View"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="BorderBrush" TargetName="border" Value="{StaticResource Editor.MouseOver.BorderBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        
     </UserControl.Resources>
     
     <Grid Background="{StaticResource Editor.Window.GrayBrush2}">
@@ -250,6 +306,12 @@
                     <Setter Property="Background" Value="{StaticResource Editor.Window.GrayBrush2}"/>
                     <Setter Property="ListBox.BorderThickness" Value="0"/>
                     <Setter Property="View" Value="{StaticResource gridView}"/>
+
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding Path=IsChecked, ElementName=listViewToggle}" Value="False">
+                            <Setter Property="View" Value="{StaticResource tileView}"/>
+                        </DataTrigger>
+                    </Style.Triggers>
                 </Style>
             </ListView.Style>
         </ListView>
@@ -260,7 +322,11 @@
             </Border.Effect>
 
             <DockPanel>
-                <TextBlock Text="THIS IS A PLACEHOLDER" Margin="5" Height="32" Foreground="{StaticResource Editor.RedBrush}"/>
+                <DockPanel Margin="5" DockPanel.Dock="Top">
+                    <ToggleButton DockPanel.Dock="Right" x:Name="listViewToggle" Style="{StaticResource ListViewToggleButtonStyle}"/>
+                    <!-- placeholder for searching functionality, irrelevant for now -->
+                    <TextBox />
+                </DockPanel>
                 <StackPanel Orientation="Horizontal" x:Name="pathStack" Margin="0,0,0,5">
                     <StackPanel.Resources>
                         <!-- Basically a style for buttons that show our path, which is basically slightly overridden version of default button style
@@ -319,7 +385,6 @@
 
                         <Style TargetType="{x:Type Path}" x:Key="{x:Type Path}">
                             <Setter Property="Margin" Value="0,3,0,0"/>
-                            <!--<Setter Property="Grid.Column" Value="1"/>-->
                             <Setter Property="Data" Value="M0,0 L1.5,0 L4.5,3 L1.5,6 L0,6 L3,3 z"/>
                             <Setter Property="Fill" Value="{StaticResource Editor.FontBrush}"/>
                             <Setter Property="HorizontalAlignment" Value="Center"/>

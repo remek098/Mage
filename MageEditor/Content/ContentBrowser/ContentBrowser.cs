@@ -196,8 +196,19 @@ namespace MageEditor.Content
 
         public void Dispose()
         {
+            //_contentWatcher.EnableRaisingEvents = false;
+
+            //_contentWatcher.Changed -= OnContentModified;
+            //_contentWatcher.Created -= OnContentModified;
+            //_contentWatcher.Deleted -= OnContentModified;
+            //_contentWatcher.Renamed -= OnContentModified;
+
+            //_refreshTimer.Triggered -= Refresh;
+
+
             ((IDisposable)_contentWatcher).Dispose();
-            if(!string.IsNullOrEmpty(_cacheFilePath)) {
+            // _contentWatcher.Dispose();
+            if (!string.IsNullOrEmpty(_cacheFilePath)) {
                 SaveInfoCache(_cacheFilePath);
                 _cacheFilePath = string.Empty;
             }

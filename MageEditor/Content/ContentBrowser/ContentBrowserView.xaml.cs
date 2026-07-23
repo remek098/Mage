@@ -3,6 +3,8 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Drawing.Drawing2D;
+using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Windows;
@@ -60,7 +62,7 @@ namespace MageEditor.Content
         {
             (DataContext as ContentBrowser)?.Dispose();
             DataContext = null;
-            if(e.NewValue is Project project) {
+            if (e.NewValue is Project project) {
                 Debug.Assert(e.NewValue == Project.Current);
                 var contentBrowser = new ContentBrowser(project);
                 contentBrowser.PropertyChanged += OnSelectedFolderChanged;
@@ -163,5 +165,88 @@ namespace MageEditor.Content
             // if (cb == null) return;
             cb?.SelectedFolder = (sender as Button)?.DataContext as string ?? cb.ContentFolder;
         }
+    }
+
+
+    class DataSizeToStringConverter : IValueConverter
+    {
+        static readonly string[] _sizeSuffixes =
+                   { "B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB" };
+        static string SizeSuffix(long value, int decimalPlaces = 1)
+        {
+            if (value <= 0 || decimalPlaces < 0) return string.Empty;
+
+            // mag is 0 for bytes, 1 for KB, 2, for MB, etc.
+            int mag = (int)Math.Log(value, 1024);
+
+            // 1L << (mag * 10) == 2 ^ (10 * mag) 
+            // [i.e. the number of bytes in the unit corresponding to mag]
+            decimal adjustedSize = (decimal)value / (1L << (mag * 10));
+
+            // make adjustment when the value is large enough that
+            // it would round up to 1000 or more
+            if (Math.Round(adjustedSize, decimalPlaces) >= 1000) {
+                mag += 1;
+                adjustedSize /= 1024;
+            }
+
+            return string.Format("{0:n" + decimalPlaces + "} {1}",
+                                 adjustedSize,
+                                 _sizeSuffixes[mag]);
+        }
+
+        public object? Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            // round up to closest integer value
+            return (value is long size) ? SizeSuffix(size, 0) : null;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    // based on https://learn.microsoft.com/en-us/dotnet/desktop/wpf/controls/how-to-create-a-custom-view-mode-for-a-listview
+    class PlainView : ViewBase
+    {
+
+        public static readonly DependencyProperty ItemContainerStyleProperty =
+          ItemsControl.ItemContainerStyleProperty.AddOwner(typeof(PlainView));
+
+        public Style ItemContainerStyle
+        {
+            get { return (Style)GetValue(ItemContainerStyleProperty); }
+            set { SetValue(ItemContainerStyleProperty, value); }
+        }
+
+        public static readonly DependencyProperty ItemTemplateProperty =
+            ItemsControl.ItemTemplateProperty.AddOwner(typeof(PlainView));
+
+        public DataTemplate ItemTemplate
+        {
+            get { return (DataTemplate)GetValue(ItemTemplateProperty); }
+            set { SetValue(ItemTemplateProperty, value); }
+        }
+
+        public static readonly DependencyProperty ItemWidthProperty =
+            WrapPanel.ItemWidthProperty.AddOwner(typeof(PlainView));
+
+        public double ItemWidth
+        {
+            get { return (double)GetValue(ItemWidthProperty); }
+            set { SetValue(ItemWidthProperty, value); }
+        }
+
+        public static readonly DependencyProperty ItemHeightProperty =
+            WrapPanel.ItemHeightProperty.AddOwner(typeof(PlainView));
+
+        public double ItemHeight
+        {
+            get { return (double)GetValue(ItemHeightProperty); }
+            set { SetValue(ItemHeightProperty, value); }
+        }
+
+        protected override object DefaultStyleKey => new ComponentResourceKey(GetType(), "PlanViewResourceId");
     }
 }

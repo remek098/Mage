@@ -19,6 +19,7 @@
     <Color x:Key="Editor.LightPurpleColor">#ffffa0dd</Color>
     <Color x:Key="Editor.Selected.BackgroundColor">#ff3c67b6</Color>
     <Color x:Key="Editor.Selected.BackgroundColorWarm">#ffeeaa80</Color>
+    <Color x:Key="Editor.MouseOver.BorderColor">#ff7eb4ea</Color>
 
     <SolidColorBrush Color="{StaticResource Editor.Window.GrayColor1}" x:Key="Editor.Window.GrayBrush1"/>
     <SolidColorBrush Color="{StaticResource Editor.Window.GrayColor2}" x:Key="Editor.Window.GrayBrush2"/>
@@ -38,4 +39,5 @@
     <SolidColorBrush Color="{StaticResource Editor.LightPurpleColor}" x:Key="Editor.LightPurpleBrush"/>
     <SolidColorBrush Color="{StaticResource Editor.Selected.BackgroundColor}" x:Key="Editor.Selected.BackgroundBrush"/>
     <SolidColorBrush Color="{StaticResource Editor.Selected.BackgroundColorWarm}" x:Key="Editor.Selected.BackgroundBrushWarm"/>
+    <SolidColorBrush Color="{StaticResource Editor.MouseOver.BorderColor}" x:Key="Editor.MouseOver.BorderBrush"/>
 </ResourceDictionary>

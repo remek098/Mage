@@ -19,6 +19,8 @@
   <ItemGroup>
     <None Remove="Resources\ContentBrowser\FolderLarge.png" />
     <None Remove="Resources\ContentBrowser\FolderSmall.png" />
+    <None Remove="Resources\ContentBrowser\GridView.png" />
+    <None Remove="Resources\ContentBrowser\TileView.png" />
     <None Remove="Resources\PrimitiveMeshView\CheckerMap.png" />
     <None Remove="Resources\PrimitiveMeshView\PlaneTexture.png" />
   </ItemGroup>
@@ -47,6 +49,8 @@
   <ItemGroup>
     <Resource Include="Resources\ContentBrowser\FolderLarge.png" />
     <Resource Include="Resources\ContentBrowser\FolderSmall.png" />
+    <Resource Include="Resources\ContentBrowser\GridView.png" />
+    <Resource Include="Resources\ContentBrowser\TileView.png" />
     <Resource Include="Resources\PrimitiveMeshView\CheckerMap.png" />
     <Resource Include="Resources\PrimitiveMeshView\PlaneTexture.png" />
   </ItemGroup>
