@@ -22,16 +22,62 @@ namespace MageEditor.Content
     /// <summary>
     /// Interaction logic for ContentBrowserView.xaml
     /// </summary>
-    public partial class ContentBrowserView : UserControl
+    public partial class ContentBrowserView : UserControl, IDisposable
     {
         private string _sortedProperty = nameof(ContentInfo.FileName); // we're sorting by FileName by default
         private ListSortDirection _sortDirection;
+
+
+
+        public SelectionMode SelectionMode
+        {
+            get => (SelectionMode)GetValue(SelectionModeProperty);
+            set => SetValue(SelectionModeProperty, value);
+        }
+
+        public static readonly DependencyProperty SelectionModeProperty =
+            DependencyProperty.Register(nameof(SelectionMode), typeof(SelectionMode), typeof(ContentBrowserView), new PropertyMetadata(SelectionMode.Extended));
+
+
+
+        public FileAccess FileAccess
+        {
+            get => (FileAccess)GetValue(FileAccessProperty);
+            set => SetValue(FileAccessProperty, value);
+        }
+
+        public static readonly DependencyProperty FileAccessProperty =
+            DependencyProperty.Register(nameof(FileAccess), typeof(FileAccess), typeof(ContentBrowserView), new PropertyMetadata(FileAccess.ReadWrite));
+
+
+        internal ContentInfo? SelectedItem
+        {
+            get => (ContentInfo)GetValue(SelectedItemProperty);
+            set => SetValue(SelectedItemProperty, value);
+        }
+
+        // Using a DependencyProperty as the backing store for SelectedItem.  This enables animation, styling, binding, etc...
+        public static readonly DependencyProperty SelectedItemProperty =
+            DependencyProperty.Register(nameof(SelectedItem), typeof(ContentInfo), typeof(ContentBrowserView), new PropertyMetadata(null));
+
+
 
         public ContentBrowserView()
         {
             DataContext = null;
             InitializeComponent();
             Loaded += OnContentBrowserLoaded;
+        }
+
+        public void Dispose()
+        {
+            if (Application.Current?.MainWindow != null) {
+                // will notify us when the project is changed.
+                Application.Current.MainWindow.DataContextChanged -= OnProjectChanged;
+            }
+
+            (DataContext as ContentBrowser)?.Dispose();
+            DataContext = null;
         }
 
         private void OnContentBrowserLoaded(object sender, RoutedEventArgs e)
@@ -165,6 +211,14 @@ namespace MageEditor.Content
             // if (cb == null) return;
             cb?.SelectedFolder = (sender as Button)?.DataContext as string ?? cb.ContentFolder;
         }
+
+        private void OnFolderContent_ListView_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            var item = folderListView.SelectedItem as ContentInfo;
+            SelectedItem = item?.IsDirectory == true ? null : item;
+        }
+
+        
     }
 
 

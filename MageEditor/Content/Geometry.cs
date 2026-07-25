@@ -386,7 +386,10 @@ namespace MageEditor.Content
                 foreach(var lod_group in _lodGroups) {
                     Debug.Assert(lod_group.LODs.Any());
                     // use the name of the most detailed LOD for file name
-                    var meshFileName = ContentHelper.SanitizeFileName(path + fileName + "_" + lod_group.LODs[0].Name + AssetFileExtension);
+                    var meshFileName = ContentHelper.SanitizeFileName(
+                        _lodGroups.Count > 1 ?
+                        path + fileName + "_" + lod_group.LODs[0].Name + AssetFileExtension :
+                        path + fileName + AssetFileExtension);
                     // NOTE: we have to make a diffrent id for each newly created asset file.
                     Guid = Guid.NewGuid();
                     byte[]? data = null;

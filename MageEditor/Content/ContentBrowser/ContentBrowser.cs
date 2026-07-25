@@ -40,7 +40,7 @@ namespace MageEditor.Content
     {
         // because we're calling GetFolderContent() method on both UI and non-UI threads.
         // by _refreshTimer with Refresh() method and in SelectedFolder property setter (on UI thread)
-        private static readonly DelayedEventTimer _refreshTimer = new DelayedEventTimer(TimeSpan.FromMicroseconds(250));
+        private readonly DelayedEventTimer _refreshTimer = new DelayedEventTimer(TimeSpan.FromMicroseconds(250));
 
 
         public string ContentFolder { get; }
