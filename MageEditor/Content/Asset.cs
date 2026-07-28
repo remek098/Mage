@@ -68,6 +68,8 @@ namespace MageEditor.Content
         /// </summary>
         public byte[]? Hash { get; protected set; }
 
+        public abstract void Import(string file);
+
         /// <summary>
         /// Saves file(s) to a specified location.
         /// </summary>

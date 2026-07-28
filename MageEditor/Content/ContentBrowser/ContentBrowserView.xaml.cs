@@ -67,6 +67,7 @@ namespace MageEditor.Content
             DataContext = null;
             InitializeComponent();
             Loaded += OnContentBrowserLoaded;
+            AllowDrop = true;
         }
 
         public void Dispose()
@@ -218,7 +219,18 @@ namespace MageEditor.Content
             SelectedItem = item?.IsDirectory == true ? null : item;
         }
 
-        
+        private void OnFolderContent_ListView_Drop(object sender, DragEventArgs e)
+        {
+            var cb = DataContext as ContentBrowser;
+            if(cb?.SelectedFolder != null && e.Data.GetDataPresent(DataFormats.FileDrop)) {
+                // Drop event will contain payload with information about dropped files.
+                var files = (string[])e.Data.GetData(DataFormats.FileDrop);
+                if(files?.Length > 0 && Directory.Exists(cb.SelectedFolder)) {
+                    _ = ContentHelper.ImportFilesAsync(files, cb.SelectedFolder);
+                    e.Handled = true;
+                }
+            }
+        }
     }
 
 

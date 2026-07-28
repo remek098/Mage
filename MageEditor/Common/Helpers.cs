@@ -1,4 +1,5 @@
-﻿using System;
+﻿using MageEditor.Content;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -87,6 +88,78 @@ namespace MageEditor
                 return sha256.ComputeHash(data, offset, count > 0 ? count : data.Length);
             }
             return null;
+        }
+
+        public static async Task ImportFilesAsync(string[] files, string destinationFolder)
+        {
+            try {
+                Debug.Assert(!string.IsNullOrEmpty(destinationFolder));
+                // disable ContentWatcher's events to avoid unnecessary updates to AssetRegistery and ContentBrowser
+                ContentWatcher.EnableFileWatcher(false);
+
+                // send all import tasks and await until all of them are finished
+                var tasks = files.Select(async file => await Task.Run(() =>
+                {
+                    Import(file, destinationFolder);
+                }));
+                await Task.WhenAll(tasks);
+            }
+            catch (Exception ex) {
+                Debug.WriteLine($"Failed to import files to {destinationFolder}");
+                Debug.WriteLine(ex.Message);
+            }
+            finally {
+                // enables regardless of any errors that occured. (last thing we want is to have files broken in our game's project dir
+                ContentWatcher.EnableFileWatcher(true);
+            }
+        }
+
+        private static void Import(string file, string destinationFolder)
+        {
+            Debug.Assert(!string.IsNullOrEmpty(file));
+            if (IsDirectory(file)) return;
+            if(!destinationFolder.EndsWith(Path.DirectorySeparatorChar)) destinationFolder += Path.DirectorySeparatorChar;
+
+            var name = Path.GetFileNameWithoutExtension(file).ToLower();
+            var ext = Path.GetExtension(file).ToLower();
+
+            Asset? asset = null;
+            switch (ext) {
+                case ".fbx": {
+                        asset = new Content.Geometry();
+                        break;
+                    }
+                case ".bmp": break;
+                case ".png": break;
+                case ".jpg": break;
+                case ".jpeg": break;
+                case ".tiff": break;
+                case ".tif": break;
+                case ".tga": break;
+                case ".wav": break;
+                case ".ogg": break;
+                default:
+                    break;
+            }
+
+            if(asset != null) {
+                Import(asset, name, file, destinationFolder);
+            }
+        }
+
+        private static void Import(Asset asset, string name, string file, string destinationFolder)
+        {
+            Debug.Assert(asset != null);
+
+            asset.FullPath = destinationFolder + name + Asset.AssetFileExtension;
+            // well technically we assert such thing in the method above called by async Task Import FilesAsync(), but
+            // just to be sure, if someone called it somewhere else and didn't know file path can't be null or empty.
+            if(!string.IsNullOrEmpty(file)) {
+                asset.Import(file);
+            }
+
+            asset.Save(asset.FullPath);
+            return;
         }
     }
 }

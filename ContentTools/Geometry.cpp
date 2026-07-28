@@ -291,9 +291,85 @@ namespace mage::tools {
             }
             memcpy(&buffer[at], data, s); at += s;
         }
+
+        bool split_meshes_by_material(u32 material_id, const mesh& m, mesh& submesh) {
+            submesh.name = m.name;
+            submesh.lod_treshhold = m.lod_treshhold;
+            submesh.lod_id = m.lod_id;
+            submesh.material_used.emplace_back(material_id);
+            submesh.uv_sets.resize(m.uv_sets.size());
+
+            const u32 num_polygons = (u32)m.raw_indices.size() / 3;
+            utl::vector<u32> vertex_ref(m.positions.size(), u32_invalid_id);
+
+            // copy indices, positions, normals, tangents, uv_sets to submesh
+            for (u32 i = 0; i < num_polygons; ++i) {
+                const u32 mtl_id = m.material_indices[i];
+                if(mtl_id != material_id) continue;
+
+                const u32 index = i*3;
+                for (u32 j = index; j < index + 3; ++j) {
+                    const u32 v_id = m.raw_indices[j];
+                    // unique vertex positions
+                    if (vertex_ref[v_id] != u32_invalid_id) {
+                        submesh.raw_indices.emplace_back(vertex_ref[v_id]);
+                    }
+                    else {
+                        submesh.raw_indices.emplace_back((u32)submesh.positions.size()); // grows when we go through loops
+                        vertex_ref[v_id] = submesh.raw_indices.back();
+                        submesh.positions.emplace_back(m.positions[v_id]);
+                    }
+
+                    if (m.normals.size()) {
+                        submesh.normals.emplace_back(m.normals[j]);
+                    }
+
+                    if (m.tangents.size()) {
+                        submesh.tangents.emplace_back(m.tangents[j]);
+                    }
+
+                    for (u32 k = 0; k < m.uv_sets.size(); ++k) {
+                        if (m.uv_sets[k].size()) {
+                            submesh.uv_sets[k].emplace_back(m.uv_sets[k][j]);
+                        }
+                    }
+                }
+            }
+
+            assert((submesh.raw_indices.size() % 3) == 0);
+            return !submesh.raw_indices.empty();
+        }
+
+        void split_meshes_by_material(scene& scene) {
+            for (auto& lod : scene.lod_groups) {
+                utl::vector<mesh> new_meshes;
+
+                for (auto& m : lod.meshes) {
+                    // if more than 1 material is used in this mesh,
+                    // then split it into submeshes.
+                    const u32 num_materials = (u32)m.material_used.size();
+                    if (num_materials > 1) {
+                        for (u32 i = 0; i < num_materials; ++i) {
+                            mesh submesh{};
+                            if (split_meshes_by_material(m.material_used[i], m, submesh)) {
+                                new_meshes.emplace_back(submesh);
+                            }
+                        }
+                    }
+                    else {
+                        new_meshes.emplace_back(m);
+                    }
+                }
+
+                new_meshes.swap(lod.meshes);
+            }
+        }
+
     } // anonymous namespace
 
     void process_scene(scene& scene, const geometry_import_settings& settings) {
+        split_meshes_by_material(scene);
+
         for ( auto& lod : scene.lod_groups ) {
             for ( auto& m : lod.meshes ) {
                  process_vertices(m, settings);

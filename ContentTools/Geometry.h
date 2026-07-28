@@ -30,6 +30,8 @@ namespace mage::tools {
         utl::vector<math::vec3>                 normals;
         utl::vector<math::vec4>                 tangents;
         utl::vector<utl::vector<math::vec2>>    uv_sets; // we might have diffrent uv_sets for a mesh
+        utl::vector<u32>                        material_indices; // per polygon material indices
+        utl::vector<u32>                        material_used;  // id of each material used in this mesh
 
         utl::vector<u32>                        raw_indices;
 

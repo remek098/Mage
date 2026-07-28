@@ -27,12 +27,19 @@ namespace MageEditor.GameProject
         [DataMember]
         public string Name { get; private set; } = "New Project";
 
+        /// <summary>
+        /// Gets the root folder that contains the current project.
+        /// </summary>
         [DataMember]
         public string Path { get; private set; }
 
+        /// <summary>
+        /// Gets full path of the current Mage project file, including it's file name and extension.
+        /// </summary>
         public string FullPath => $@"{Path}{Name}{Extension}";
         public string Solution => $@"{Path}{Name}.sln";
         public string ContentPath => $@"{Path}Content\";
+        public string TempFolder => $@"{Path}.Mage\Temp\";
 
         public int _buildConfig;
 
@@ -203,8 +210,18 @@ namespace MageEditor.GameProject
             VisualStudio.CloseVisualStudio();
             UndoRedo.Reset();
             Logger.Clear();
+            DeleteTempFolder();
         }
 
+        /// <summary>
+        /// Deletes whole /Temp folder to avoid having unnecessary junk that is used only when importing files to engine's side format.
+        /// </summary>
+        private void DeleteTempFolder()
+        {
+            if(Directory.Exists(TempFolder)) {
+                Directory.Delete(TempFolder, true);
+            }
+        }
 
         private static void Save(Project project)
         {

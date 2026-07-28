@@ -1,3 +1,7 @@
+Before first build please make sure you have installed Autodesk's FBX SDK 2020.3.9 VS2022 for Windows. (available at https://aps.autodesk.com/developer/overview/fbx-sdk)
+Preferably have it installed at default location, i.e. C:\Program Files\Autodesk\FBX\FBX SDK\2020.3.9 
+(unless you want to tackle the include paths and additional dependencies in ContentTools project yourself).
+
 Upon first build and launch you have to specify the location of Mage location (the root folder for repo on your disk):
 Environment variable MAGE_ENGINE might look like so after typing "set" command in Command Prompt:
     MAGE_ENGINE=F:\DEV\MAGE\MAGE_GIT\MAGE\

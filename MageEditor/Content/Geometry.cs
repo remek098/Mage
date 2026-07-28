@@ -1,4 +1,6 @@
 ﻿using MageEditor.Common;
+using MageEditor.DllWrappers;
+using MageEditor.GameProject;
 using MageEditor.Utilities;
 using System;
 using System.Collections.Generic;
@@ -258,6 +260,7 @@ namespace MageEditor.Content
     class Geometry : Asset
     {
         private readonly List<LODGroup> _lodGroups = new List<LODGroup>();
+        private readonly object _lock = new object(); // because some methods are called asynchronously
         public GeometryImportSettings ImportSettings { get; } = new GeometryImportSettings();
 
         public LODGroup? GetLODGroup(int lodGroup = 0)
@@ -370,6 +373,46 @@ namespace MageEditor.Content
             lod.Meshes.Add(mesh);
         }
 
+        public override void Import(string file)
+        {
+            Debug.Assert(File.Exists(file));
+            Debug.Assert(!string.IsNullOrEmpty(FullPath));
+
+            var ext = Path.GetExtension(file).ToLower();
+            SourcePath = file; // remember from where this file came
+
+            try {
+                // NOTE: checking file extension here, because in future we might want to support other formats
+                if (ext == ".fbx") {
+                    ImportFbx(file);
+                }
+            }
+            catch (Exception ex) {
+                Debug.WriteLine(ex.Message);
+                var msg = $"Failed to read {file} for import.";
+                Debug.WriteLine(msg);
+                Logger.Log(MessageType.Error, msg);
+            }
+        }
+
+        private void ImportFbx(string file)
+        {
+            Logger.Log(MessageType.Info, $"Importing FBX file {file}");
+            var tempPath = Application.Current.Dispatcher.Invoke(() => Project.Current?.TempFolder);
+            if (string.IsNullOrEmpty(tempPath)) return;
+
+            // because this method is called asynchronously
+            lock(_lock) {
+                if (!Directory.Exists(tempPath)) Directory.CreateDirectory(tempPath);
+            }
+
+            // using random strings to avoid overriding files that are already in the folder.
+            // (e.g. when user dropped file with the same name but from diffrent directory)
+            var tempFile = $"{tempPath}{ContentHelper.GetRandomString()}.fbx";
+            File.Copy(file, tempFile, true); // copy file to TempFolder and override already existing file if needed
+            ContentToolsAPI.ImportFbx(tempFile, this);
+        }
+
         public override IEnumerable<string> Save(string file)
         {
             // LODGroup represents a collection of Mesh assets that we have under our Geometry asset class.
@@ -457,7 +500,8 @@ namespace MageEditor.Content
 
         private byte[] GenerateIcon(MeshLOD lod)
         {
-            var width = 90 * 4; // we will render 4x wider image and then downsample it (softer edges for rendered object)
+            using var memoryStream = new MemoryStream();
+            var width = ContentInfo.IconWidth * 4; // we will render 4x wider image and then downsample it (softer edges for rendered object)
             BitmapSource? bmp = null;
 
             // this makes sure that it's executed on UI thread
@@ -468,18 +512,19 @@ namespace MageEditor.Content
             {
                 bmp = Editors.GeometryView.RenderToBitmap(new Editors.MeshRenderer(lod, null), width, width);
                 bmp = new TransformedBitmap(bmp, new ScaleTransform(0.25, 0.25, 0.5, 0.5));
+                
+                memoryStream.SetLength(0);
+                
+                // encode a bitmap we just rendered into .png format
+                var encoder = new PngBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(bmp));
+                encoder.Save(memoryStream);
             });
 
-            using var memoryStream = new MemoryStream();
-            memoryStream.SetLength(0);
-            // encode a bitmap we just rendered into .png format
-            var encoder = new PngBitmapEncoder();
-            encoder.Frames.Add(BitmapFrame.Create(bmp));
-            encoder.Save(memoryStream);
 
             return memoryStream.ToArray(); // return a stream that contains out .png image
         }
-
+        
         public Geometry() : base(AssetType.Mesh)
         {
         }
