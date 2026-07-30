@@ -284,7 +284,7 @@ namespace MageEditor.Editors
 
     class GeometryEditor : ViewModelBase, IAssetEditor
     {
-        public Content.Asset Asset => Geometry;
+        Asset IAssetEditor.Asset => Geometry;
 
         private Content.Geometry _geometry;
         public Content.Geometry Geometry
@@ -310,6 +310,64 @@ namespace MageEditor.Editors
                 {
                     _meshRenderer = value;
                     OnPropertyChanged(nameof(MeshRenderer));
+                    var lods = Geometry.GetLODGroup()?.LODs;
+                    MaxLODIndex = (lods?.Count > 0) ? lods.Count - 1 : 0;
+                    OnPropertyChanged(nameof(MaxLODIndex));
+                    if(lods?.Count > 1) {
+                        MeshRenderer.PropertyChanged += (s, e) =>
+                        {
+                            if (e.PropertyName == nameof(MeshRenderer.OffsetCameraPosition) && AutoLOD) ComputeLOD(lods);
+                        };
+
+                        ComputeLOD(lods);
+                    }
+                }
+            }
+        }
+
+        private bool _autoLOD = true;
+        public bool AutoLOD
+        {
+            get => _autoLOD;
+            set
+            {
+                if(_autoLOD != value) {
+                    _autoLOD = value;
+                    OnPropertyChanged(nameof(AutoLOD));
+                }
+            }
+        }
+
+        public int MaxLODIndex { get; private set; }
+
+        private int? _lodIndex;
+        public int? LODIndex
+        {
+            get => _lodIndex;
+            set
+            {
+                var lods = Geometry.GetLODGroup()?.LODs;
+                if (value != null && lods != null) {
+                    value = Math.Clamp(value.Value, 0, lods.Count - 1);
+                    if (_lodIndex != value) {
+                        _lodIndex = value;
+                        OnPropertyChanged(nameof(LODIndex));
+                        MeshRenderer = new MeshRenderer(lods[value.Value], MeshRenderer);
+                    }
+                }
+            }
+        }
+
+        private void ComputeLOD(IList<MeshLOD> lods)
+        {
+            if (!AutoLOD) return;
+
+            var pos = MeshRenderer.OffsetCameraPosition;
+            var distance = new Vector3D(pos.X, pos.Y, pos.Z).Length;
+            for(int i=MaxLODIndex; i >= 0; --i) {
+                if (lods[i].LODTreshold < distance) {
+                    LODIndex = i;
+                    break;
                 }
             }
         }
@@ -320,8 +378,30 @@ namespace MageEditor.Editors
             if(asset is Content.Geometry geo)
             {
                 Geometry = geo;
-                // for now we take the biggest LOD
-                MeshRenderer = new MeshRenderer(Geometry.GetLODGroup()?.LODs[0], MeshRenderer);
+                var numLods = geo.GetLODGroup()?.LODs.Count;
+                if(numLods != null && LODIndex >= numLods) {
+                    LODIndex = numLods -1;
+                }
+                else {
+                    MeshRenderer = new MeshRenderer(Geometry.GetLODGroup()?.LODs[0], MeshRenderer);
+                }
+            }
+        }
+
+        public async void SetAsset(AssetInfo info)
+        {
+            try {
+                Debug.Assert(info != null && File.Exists(info.FullPath));
+                var geometry = new Content.Geometry();
+                await Task.Run(() =>
+                {
+                    geometry.Load(info.FullPath);
+                });
+
+                SetAsset(geometry);
+            }
+            catch (Exception ex) {
+                Debug.WriteLine(ex.Message);
             }
         }
 

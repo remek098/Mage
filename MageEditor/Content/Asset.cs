@@ -70,12 +70,18 @@ namespace MageEditor.Content
 
         public abstract void Import(string file);
 
+        public abstract void Load(string file);
+
         /// <summary>
         /// Saves file(s) to a specified location.
         /// </summary>
         /// <param name="file_location"></param>
         /// <returns></returns>
         public abstract IEnumerable<string> Save(string file);
+
+        public static AssetInfo? TryGetAssetInfo(string file) =>
+            File.Exists(file) && Path.GetExtension(file) == AssetFileExtension ? AssetRegistery.GetAssetInfo(file) ?? GetAssetInfo(file) : null;
+        
         private static AssetInfo GetAssetInfo(BinaryReader reader)
         {
             // does similar thing to what WriteAssetFileHeader does, but will read instead of writing.

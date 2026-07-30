@@ -255,6 +255,16 @@ namespace MageEditor.Content
             writer.Write(ImportEmbededTextures);
             writer.Write(ImportAnimations);
         }
+
+        public void FromBinary(BinaryReader reader)
+        {
+            CalculateNormals = reader.ReadBoolean();
+            CalculateTangents = reader.ReadBoolean();
+            SmoothingAngle = reader.ReadSingle();
+            ReverseHandedness = reader.ReadBoolean();
+            ImportEmbededTextures = reader.ReadBoolean();
+            ImportAnimations = reader.ReadBoolean();
+        }
     }
 
     class Geometry : Asset
@@ -266,7 +276,7 @@ namespace MageEditor.Content
         public LODGroup? GetLODGroup(int lodGroup = 0)
         {
             Debug.Assert(lodGroup >= 0 && lodGroup < _lodGroups.Count);
-            return _lodGroups.Any() ? _lodGroups[lodGroup] : null;
+            return (lodGroup < _lodGroups.Count) ? _lodGroups[lodGroup] : null;
         }
 
         public void FromRawData(byte[] data)
@@ -413,6 +423,42 @@ namespace MageEditor.Content
             ContentToolsAPI.ImportFbx(tempFile, this);
         }
 
+
+        public override void Load(string file)
+        {
+            Debug.Assert(File.Exists(file));
+            Debug.Assert(Path.GetExtension(file).ToLower() == AssetFileExtension);
+
+            try {
+                byte[]? data = null;
+                using (var reader = new BinaryReader(File.Open(file, FileMode.Open, FileAccess.Read))) {
+                    ReadAssetFileHeader(reader);
+                    ImportSettings.FromBinary(reader);
+
+                    int dataLength = reader.ReadInt32();
+                    Debug.Assert(dataLength > 0);
+                    data = reader.ReadBytes(dataLength);
+                }
+
+                Debug.Assert(data.Length > 0);
+                using (var reader = new BinaryReader(new MemoryStream(data))) {
+                    LODGroup lodGroup = new LODGroup();
+                    lodGroup.Name = reader.ReadString();
+                    var lodCount = reader.ReadInt32();
+
+                    for(int i=0; i < lodCount; ++i) {
+                        lodGroup.LODs.Add(BinaryToLOD(reader));
+                    }
+                    _lodGroups.Clear();
+                    _lodGroups.Add(lodGroup);
+                }
+            }
+            catch (Exception ex) {
+                Debug.WriteLine("--- Occured in Geometry.Load() " + ex.Message);
+                Logger.Log(MessageType.Error, $"Failed to load geometry asset from {file}");
+            }
+        }
+
         public override IEnumerable<string> Save(string file)
         {
             // LODGroup represents a collection of Mesh assets that we have under our Geometry asset class.
@@ -433,8 +479,9 @@ namespace MageEditor.Content
                         _lodGroups.Count > 1 ?
                         path + fileName + "_" + lod_group.LODs[0].Name + AssetFileExtension :
                         path + fileName + AssetFileExtension);
-                    // NOTE: we have to make a diffrent id for each newly created asset file.
-                    Guid = Guid.NewGuid();
+                    // NOTE: we have to make a diffrent id for each newly created asset file,
+                    // but if a geometry asset file with the same name already exists then we use its guid instead.
+                    Guid = (TryGetAssetInfo(meshFileName) is AssetInfo info && info.Type == Type) ? info.Guid : Guid.NewGuid();
                     byte[]? data = null;
                     using(var writer = new BinaryWriter(new MemoryStream())) {
                         writer.Write(lod_group.Name); // name of object
@@ -459,6 +506,7 @@ namespace MageEditor.Content
                         writer.Write(data);
                     }
 
+                    Logger.Log(MessageType.Info, $"Saved geometry to {meshFileName}");
                     savedFiles.Add(meshFileName);
                 }
             }
@@ -498,6 +546,30 @@ namespace MageEditor.Content
             hash = ContentHelper.ComputeHash(buffer, (int)meshDataBeginWriterPosition, (int) meshDataSize);
         }
 
+        private MeshLOD BinaryToLOD(BinaryReader reader)
+        {
+            // read in order as had been written in LODToBinary()
+            var lod = new MeshLOD();
+            lod.Name = reader.ReadString();
+            lod.LODTreshold = reader.ReadSingle();
+            var meshCount = reader.ReadInt32();
+
+            for(int i=0; i<meshCount; ++i) {
+                var mesh = new Mesh() {
+                    VertexSize = reader.ReadInt32(),
+                    VertexCount = reader.ReadInt32(),
+                    IndexSize = reader.ReadInt32(),
+                    IndexCount = reader.ReadInt32()
+                };
+                mesh.Vertices = reader.ReadBytes(mesh.VertexSize *  mesh.VertexCount);
+                mesh.Indices = reader.ReadBytes(mesh.IndexCount * mesh.IndexSize);
+
+                lod.Meshes.Add(mesh);
+            }
+
+            return lod;
+        }
+
         private byte[] GenerateIcon(MeshLOD lod)
         {
             using var memoryStream = new MemoryStream();
@@ -524,7 +596,7 @@ namespace MageEditor.Content
 
             return memoryStream.ToArray(); // return a stream that contains out .png image
         }
-        
+
         public Geometry() : base(AssetType.Mesh)
         {
         }

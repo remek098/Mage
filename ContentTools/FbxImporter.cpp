@@ -114,7 +114,7 @@ namespace mage::tools {
             const i32 num_lods = lod_grp->GetNumThresholds(); // 1 less than number of meshes
             const i32 num_nodes = node->GetChildCount();
 
-            assert(num_lods > 0 && num_nodes > 0);
+            assert(num_lods >= 0 && num_nodes > 0);
             for (i32 i = 0; i < num_nodes; ++i) {
                 get_mesh(node->GetChild(i), lod.meshes); // import mesh
 

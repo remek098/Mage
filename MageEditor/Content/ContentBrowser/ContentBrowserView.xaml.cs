@@ -1,4 +1,5 @@
-﻿using MageEditor.GameProject;
+﻿using MageEditor.Editors;
+using MageEditor.GameProject;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -204,6 +205,70 @@ namespace MageEditor.Content
                 var cb = DataContext as ContentBrowser;
                 cb?.SelectedFolder = info.FullPath;
             }
+            else if (FileAccess.HasFlag(FileAccess.Read)) {
+                var assetInfo = Asset.GetAssetInfo(info.FullPath);
+                if(assetInfo != null) {
+                    // open proper editor for that kind of asset.
+                    OpenAssetEditor(assetInfo);
+                }
+            }
+        }
+
+        private IAssetEditor? OpenAssetEditor(AssetInfo info)
+        {
+            IAssetEditor? editor = null;
+            try {
+                switch (info.Type) {
+                    case AssetType.Animation: break;
+                    case AssetType.Audio: break;
+                    case AssetType.Material: break;
+                    case AssetType.Mesh: {
+                            editor = OpenEditorPanel<GeometryEditorView>(info, info.Guid, "GeometryEditor");
+                            break;
+                        }
+                    case AssetType.Skeleton: break;
+                    case AssetType.Texture: break;
+
+                    default:
+                        break;
+                }
+            }
+            catch (Exception ex) {
+                Debug.WriteLine(ex.Message);
+            }
+
+            return editor;
+        }
+
+        // we can call this function only if T is FrameworkElement and has default constructor
+        private IAssetEditor? OpenEditorPanel<T>(AssetInfo info, Guid guid, string title)
+            where T : FrameworkElement, new()
+        {
+            // first look for a window that's already opened and is displaying the same asset.
+            foreach(Window window in Application.Current.Windows) {
+                if(window.Content is FrameworkElement content && 
+                    content.DataContext is IAssetEditor editor && 
+                    editor.Asset.Guid == info.Guid) 
+                {
+                    window.Activate(); // bring that window up
+                    return editor;
+                }
+            }
+
+            // if not already opened in an asset editor, we create a new window and load the asset.
+            var newEditor = new T();
+            Debug.Assert(newEditor.DataContext is IAssetEditor);
+            (newEditor.DataContext as IAssetEditor)?.SetAsset(info);
+
+            var win = new Window() {
+                Content = newEditor,
+                Title = title,
+                Owner = Application.Current.MainWindow,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Style = Application.Current.FindResource("MageWindowStyle") as Style
+            };
+            win.Show();
+            return newEditor.DataContext as IAssetEditor;
         }
 
         private void OnPathStack_Button_Click(object sender, RoutedEventArgs e)
