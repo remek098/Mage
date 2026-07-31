@@ -46,6 +46,12 @@ namespace mage::tools {
         u32                                         lod_id{ u32_invalid_id }; // denotes which meshes belong together in one LOD object
     };
 
+    struct parsed_lod_name {
+        std::string base_name;
+        u32 lod_id = 0;
+        bool is_lod = false;
+    };
+
     struct lod_group {
         std::string         name;
         utl::vector<mesh>   meshes;
@@ -54,6 +60,9 @@ namespace mage::tools {
     struct scene {
         std::string             name;
         utl::vector<lod_group>  lod_groups; // group of meshes, that represent that object and all level of details for that object
+
+        void add_mesh(mesh m);
+        void generate_default_lod_thresholds();
     };
 
     struct geometry_import_settings {
@@ -73,7 +82,7 @@ namespace mage::tools {
 
     
 
-
+    parsed_lod_name parse_lod_name(std::string_view name);
     void process_scene(scene& scene, const geometry_import_settings& settings);
     void pack_data(const scene& scene, scene_data& data);
 }

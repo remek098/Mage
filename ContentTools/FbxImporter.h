@@ -37,9 +37,23 @@ namespace mage::tools {
         bool initialize_fbx();
         void load_fbx_file(const char* file);
 
-        // meshes is out param where we get engine's format of this mesh added in.
-        void get_mesh(FbxNode* node, utl::vector<mesh>& meshes);
-        void get_lod_group(FbxNode* node);
+        //void get_meshes(FbxNode* node, utl::vector<mesh>& meshes, u32 lod_id, f32 lod_treshold);
+        //// meshes is out param where we get engine's format of this mesh added in.
+        //void get_mesh(FbxNodeAttribute* attribute, utl::vector<mesh>& meshes, u32 lod_id, f32 lod_treshold);
+        void get_mesh(
+            FbxNodeAttribute* attribute,
+            const std::string& group_name,
+            u32 lod_id,
+            f32 lod_threshold);
+        void get_meshes(
+            FbxNode* node,
+            const std::string& group_name,
+            u32 lod_id,
+            f32 lod_threshold);
+
+        void get_mesh(FbxNodeAttribute* attribute);
+        void get_meshes(FbxNode* node);
+        void get_lod_group(FbxNodeAttribute* attribute);
         bool get_mesh_data(FbxMesh* fbx_mesh, mesh& m);
 
     private:

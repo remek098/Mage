@@ -367,6 +367,101 @@ namespace mage::tools {
 
     } // anonymous namespace
 
+    void scene::add_mesh(mesh m) {
+        auto it = std::find_if(
+            lod_groups.begin(),
+            lod_groups.end(),
+            [&](const lod_group& g)
+            {
+                return g.name == m.name;
+            });
+
+        if (it == lod_groups.end()) {
+            lod_groups.emplace_back();
+            it = std::prev(lod_groups.end());
+
+            it->name = m.name;
+        }
+
+        if (it->meshes.size() <= m.lod_id)
+            it->meshes.resize(m.lod_id + 1);
+
+        // Optional sanity check
+        assert(it->meshes[m.lod_id].name.empty());
+
+        it->meshes[m.lod_id] = std::move(m);
+    }
+
+    void scene::generate_default_lod_thresholds() {
+        constexpr f32 default_thresholds[] =
+        {
+            -1.0f,   // LOD0
+            10.0f,   // LOD1
+            25.0f,   // LOD2
+            50.0f,   // LOD3
+            100.0f,  // LOD4
+            200.0f,  // LOD5
+        };
+
+        for (auto& group : lod_groups) {
+            for (u32 i = 0; i < group.meshes.size(); ++i) {
+                mesh& m = group.meshes[i];
+
+                // Preserve thresholds imported from Maya.
+                if (m.lod_treshhold >= 0.0f)
+                    continue;
+
+                if (i < std::size(default_thresholds)) {
+                    m.lod_treshhold = default_thresholds[i];
+                }
+                else {
+                    // Continue doubling after the predefined values.
+                    m.lod_treshhold =
+                        default_thresholds[std::size(default_thresholds) - 1] *
+                        (1u << (i - (std::size(default_thresholds) - 1)));
+                }
+            }
+        }
+    }
+
+    parsed_lod_name parse_lod_name(std::string_view name) {
+        parsed_lod_name result{};
+
+        result.base_name = name;
+
+        constexpr std::string_view suffix = "_LOD";
+
+        const size_t pos = name.rfind(suffix);
+
+        if(pos == 0) return result;
+
+        if (pos == std::string_view::npos)
+            return result;
+
+        const std::string_view lod_number =
+            name.substr(pos + suffix.size());
+
+        if (lod_number.empty())
+            return result;
+
+        u32 value = 0;
+
+        for (char c : lod_number) {
+            if (!std::isdigit((unsigned char)c))
+                return result;
+
+            value = value * 10 + (c - '0');
+        }
+
+        result.base_name =
+            std::string(name.substr(0, pos));
+
+        result.lod_id = value;
+        result.is_lod = true;
+
+        return result;
+    }
+
     void process_scene(scene& scene, const geometry_import_settings& settings) {
         split_meshes_by_material(scene);
 

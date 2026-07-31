@@ -39,104 +39,183 @@ namespace mage::tools {
     }
 
 
-    void fbx_context::get_scene(FbxNode* root /*= nullptr*/) {
-        // scene is represented as follows:
-        // https://help.autodesk.com/view/FBX/2020/ENU/?guid=FBX_Developer_Help_nodes_and_scene_graph_fbx_scenes_html
+    
 
+    void fbx_context::get_scene(FbxNode* root /* = nullptr */) {
         assert(is_valid());
-
+        // https://help.autodesk.com/view/FBX/2020/ENU/?guid=FBX_Developer_Help_nodes_and_scene_graph_fbx_scenes_html
+        // https://help.autodesk.com/view/FBX/2020/ENU/?guid=FBX_Developer_Help_nodes_and_scene_graph_fbx_nodes_html
         if (!root) {
-            // for now we're only looking for Mesh and LodGroup node attributes
-            // https://help.autodesk.com/view/FBX/2020/ENU/?guid=FBX_Developer_Help_nodes_and_scene_graph_fbx_nodes_html
             root = _fbx_scene->GetRootNode();
             if (!root) return;
         }
+        get_meshes(root);
 
-        const i32 num_nodes = root->GetChildCount();
-        for (i32 i = 0; i < num_nodes; ++i) {
-            FbxNode* node = root->GetChild(i);
-            if (!node) continue;
-
-
-            if (node->GetMesh()) {
-                lod_group lod{};
-                get_mesh(node, lod.meshes);
-
-                if (lod.meshes.size()) {
-                    lod.name = lod.meshes[0].name;
-                    _scene->lod_groups.emplace_back(lod);
-                }
-            }
-            else if (node->GetLodGroup()) {
-                // get all meshes within that LodGroup and convert them to our mesh format.
-                get_lod_group(node);
-            }
-            else {
-                // see if there's a mesh somewhere down the hierarchy.
-                get_scene(node);
-            }
-        }
-    } // fbx_context::get_scene()
-
-    void fbx_context::get_mesh(FbxNode* node, utl::vector<mesh>& meshes) {
-        assert(node);
-
-        if (FbxMesh* fbx_mesh = node->GetMesh()) {
-            // removes polygons that have overlapping vertices.
-            if(fbx_mesh->RemoveBadPolygons() < 0) return;
-            
-            // triangulate mesh if needed
-            FbxGeometryConverter gc{_fbx_manager};
-            fbx_mesh = static_cast<FbxMesh*>(gc.Triangulate(fbx_mesh, true));
-            if(!fbx_mesh || fbx_mesh->RemoveBadPolygons() < 0) return;
-
-            mesh m;
-            m.lod_id = (u32)meshes.size();
-            m.lod_treshhold = -1.f; // because this mesh should not have extra LODs
-            m.name = (node->GetName()[0] != '\0') ? node->GetName() : fbx_mesh->GetName();
-
-            if (get_mesh_data(fbx_mesh, m)) {
-                meshes.emplace_back(m);
-            }
-        }
-
-        // see if there's a mesh somewhere down the hierarchy.
-        get_scene(node);
+        // fill in defaults only for meshes that don't already have tresholds.
+        _scene->generate_default_lod_thresholds();
     }
 
-    void fbx_context::get_lod_group(FbxNode* node) {
+    void fbx_context::get_mesh(
+                               FbxNodeAttribute* attribute,
+                               const std::string& group_name,
+                               u32 lod_id,
+                               f32 lod_threshold) {
+        assert(attribute);
+
+        FbxMesh* fbx_mesh = static_cast<FbxMesh*>(attribute);
+        if (fbx_mesh->RemoveBadPolygons() < 0) return;
+
+        FbxGeometryConverter gc{ _fbx_manager };
+        fbx_mesh = static_cast<FbxMesh*>(gc.Triangulate(fbx_mesh, true));
+        if (!fbx_mesh || fbx_mesh->RemoveBadPolygons() < 0) return;
+
+        mesh m{};
+        m.name = group_name;
+        m.lod_id = lod_id;
+        m.lod_treshhold = lod_threshold;
+
+        if (!get_mesh_data(fbx_mesh, m)) return;
+
+        _scene->add_mesh(std::move(m));
+    }
+
+    void fbx_context::get_meshes(
+                                 FbxNode* node,
+                                 const std::string& group_name,
+                                 u32 lod_id,
+                                 f32 lod_threshold) {
         assert(node);
+
+        const i32 attribute_count = node->GetNodeAttributeCount();
+
+        for (i32 i = 0; i < attribute_count; ++i) {
+            FbxNodeAttribute* attribute =
+                node->GetNodeAttributeByIndex(i);
+
+            if (!attribute)
+                continue;
+
+            if (attribute->GetAttributeType() ==
+                FbxNodeAttribute::eMesh) {
+                get_mesh(attribute,
+                         group_name,
+                         lod_id,
+                         lod_threshold);
+            }
+        }
+
+        const i32 child_count = node->GetChildCount();
+
+        for (i32 i = 0; i < child_count; ++i) {
+            get_meshes(node->GetChild(i),
+                       group_name,
+                       lod_id,
+                       lod_threshold);
+        }
+    }
+
+
+    void fbx_context::get_meshes(FbxNode* node) {
+        assert(node);
+
+        const i32 attribute_count = node->GetNodeAttributeCount();
+        for (i32 i = 0; i < attribute_count; ++i) {
+            FbxNodeAttribute* attribute = node->GetNodeAttributeByIndex(i);
+
+            if (!attribute) continue;
+
+            switch (attribute->GetAttributeType()) {
+                case FbxNodeAttribute::eMesh:
+                    get_mesh(attribute);
+                    break;
+
+                case FbxNodeAttribute::eLODGroup:
+                    get_lod_group(attribute);
+                    return;
+            }
+        }
+
+        const i32 child_count = node->GetChildCount();
+        for (i32 i = 0; i < child_count; ++i) {
+            get_meshes(node->GetChild(i));
+        }
+    }
+
+    void fbx_context::get_mesh(FbxNodeAttribute* attribute) {
+        assert(attribute);
+
+        FbxMesh* fbx_mesh = static_cast<FbxMesh*>(attribute);
+        if (fbx_mesh->RemoveBadPolygons() < 0) return;
+
+        FbxGeometryConverter gc{ _fbx_manager };
+        fbx_mesh = static_cast<FbxMesh*>(gc.Triangulate(fbx_mesh, true));
+        if (!fbx_mesh || fbx_mesh->RemoveBadPolygons() < 0) return;
+
+        mesh m{};
+        FbxNode* node = fbx_mesh->GetNode();
+
+        m.name = node->GetName()[0] ?
+            node->GetName() :
+            fbx_mesh->GetName();
+
+        if (!get_mesh_data(fbx_mesh, m)) return;
+
+        auto info = parse_lod_name(m.name);
+        if (info.is_lod) {
+            m.name = info.base_name;
+            m.lod_id = info.lod_id;
+        }
+        else {
+            m.lod_id = 0;
+        }
+
+        _scene->add_mesh(std::move(m));
+    }
+
+
+
+    void fbx_context::get_lod_group(FbxNodeAttribute* attribute) {
+        assert(attribute);
         // https://help.autodesk.com/view/FBX/2015/ENU/?guid=__cpp_ref_class_fbx_l_o_d_group_html -> for some reason it's referenced in FBX 2015 doc, but not for 2020
-        if (FbxLODGroup* lod_grp = node->GetLodGroup()) {
-            lod_group lod{};
-            lod.name = (node->GetName()[0] != '\0') ? node->GetName() : lod_grp->GetName();
-            // NOTE: number of LODs is exclusive to the base mesh (LOD0)
-            const i32 num_lods = lod_grp->GetNumThresholds(); // 1 less than number of meshes
-            const i32 num_nodes = node->GetChildCount();
+        auto* lod_grp = static_cast<FbxLODGroup*>(attribute);
+        FbxNode* node = lod_grp->GetNode();
 
-            assert(num_lods >= 0 && num_nodes > 0);
-            for (i32 i = 0; i < num_nodes; ++i) {
-                get_mesh(node->GetChild(i), lod.meshes); // import mesh
+        const std::string group_name = node->GetName()[0] ? 
+            node->GetName() :
+            lod_grp->GetName();
 
-                // if this mesh is not the most detailed (so meshes.size() > 1)
-                // and is not the least detailed LOD (meaning it has treshold value valid &&
-                // meshes.size() is <= num_meshes contained (which is num_lods +1))
-                if (lod.meshes.size() > 1 && lod.meshes.size() <= num_lods + 1 && lod.meshes.back().lod_treshhold < 0.f) {
-                    FbxDistance treshold;
-                    // size() - 1 is last index, but last mesh doesn't have lod treshold technically.
-                    // so the fact that num_lods is 1 less than num_meshes contained, we use size() - 2 for last element index for treshold
-                    lod_grp->GetThreshold((u32)lod.meshes.size() - 2, treshold);
-                    lod.meshes.back().lod_treshhold = treshold.value() * _scene_scale;
-                }
+        // NOTE: number of LODs is exclusive to the base mesh (LOD0)
+        const i32 child_count = node->GetChildCount();
+
+        assert(child_count > 0);
+
+        for (i32 i = 0; i < child_count; ++i) {
+            f32 lod_threshold = -1.f;
+
+            if (i > 0) {
+                FbxDistance distance;
+                lod_grp->GetThreshold(i - 1, distance);
+
+                lod_threshold =
+                    distance.value() * _scene_scale;
             }
 
-            // if this lod_group contains any meshes, we add it to our scene
-            if(lod.meshes.size()) _scene->lod_groups.emplace_back(lod);
+            get_meshes(node->GetChild(i), group_name, (u32)i, lod_threshold);
         }
     }
 
     bool fbx_context::get_mesh_data(FbxMesh* fbx_mesh, mesh& m) {
         assert(fbx_mesh);
+
+        FbxNode* const node = fbx_mesh->GetNode();
+        FbxAMatrix geo_transform_mat;
+
+        geo_transform_mat.SetT(node->GetGeometricTranslation(FbxNode::eSourcePivot));
+        geo_transform_mat.SetR(node->GetGeometricRotation(FbxNode::eSourcePivot));
+        geo_transform_mat.SetS(node->GetGeometricScaling(FbxNode::eSourcePivot));
+
+        FbxAMatrix transform{node->EvaluateGlobalTransform() * geo_transform_mat};
+        FbxAMatrix inverse_transpose{transform.Inverse().Transpose()};
 
         const i32 num_polygons = fbx_mesh->GetPolygonCount();
         if(num_polygons <= 0) return false;
@@ -163,7 +242,7 @@ namespace mage::tools {
                 m.raw_indices[i] = vertex_ref[v_id];
             }
             else {
-                FbxVector4 v = vertices[v_id] * _scene_scale; // remember we need to change scale for our engine's side to not bother anymore for no reason.
+                FbxVector4 v = transform.MultT(vertices[v_id]) * _scene_scale; // remember we need to change scale for our engine's side to not bother anymore for no reason.
                 // filling like so, because in first iteration first index is always 0, then we scale it up and up for positions until we write
                 // all vertices from FbxMesh into m.positions
                 m.raw_indices[i] = (u32)m.positions.size();
@@ -212,7 +291,9 @@ namespace mage::tools {
                 // i.e. which edges need to be hard edges and which soft.
                 const i32 num_normals = normals.Size();
                 for (i32 i = 0; i < num_normals; ++i) {
-                    m.normals.emplace_back((f32)normals[i][0], (f32)normals[i][1], (f32)normals[i][2]);
+                    FbxVector4 n{ inverse_transpose.MultT(normals[i]) };
+                    n.Normalize();
+                    m.normals.emplace_back((f32)n[0], (f32)n[1], (f32)n[2]);
                 }
             }
             else {
@@ -234,7 +315,13 @@ namespace mage::tools {
                 for (i32 i = 0; i < num_tangents; ++i) {
                     FbxVector4 t = tangents->GetAt(i);
                     // NOTE: tangent values have handedness (contained in 4th component)
-                    m.tangents.emplace_back((f32)t[0], (f32)t[1], (f32)t[2], (f32)t[3]);
+                    const f32 handedness = (f32)t[3];
+                    t[3] = 0.0;
+                    t.Normalize();
+                    // TODO: not sure if this transformation is correct.
+                    t = inverse_transpose.MultT(t);
+
+                    m.tangents.emplace_back((f32)t[0], (f32)t[1], (f32)t[2], handedness);
                 }
             }
             else {
