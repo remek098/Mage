@@ -1,0 +1,3 @@
+[submodule "ContentTools/vendor/assimp"]
+	path = ContentTools/vendor/assimp
+	url = https://github.com/assimp/assimp.git

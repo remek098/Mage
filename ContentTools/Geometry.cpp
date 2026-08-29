@@ -390,6 +390,7 @@ namespace mage::tools {
         assert(it->meshes[m.lod_id].name.empty());
 
         it->meshes[m.lod_id] = std::move(m);
+        // it->meshes.emplace_back(std::move(m));
     }
 
     void scene::generate_default_lod_thresholds() {

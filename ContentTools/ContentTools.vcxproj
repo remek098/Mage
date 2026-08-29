@@ -67,16 +67,30 @@
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>$(SolutionDir)Engine\Common; C:\Program Files\Autodesk\FBX\FBX SDK\2020.3.9\include;</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Engine\Common;C:\Program Files\Autodesk\FBX\FBX SDK\2020.3.9\include;$(ProjectDir)vendor\assimp\include;$(ProjectDir)vendor\assimp\build\include; $(ProjectDir)vendor\assimp\include;</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalLibraryDirectories>C:\Program Files\Autodesk\FBX\FBX SDK\2020.3.9\lib\x64\debug;</AdditionalLibraryDirectories>
-      <AdditionalDependencies>$(CoreLibraryDependencies);%(AdditionalDependencies); libfbxsdk-md.lib; libxml2-md.lib; zlib-md.lib;</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\Program Files\Autodesk\FBX\FBX SDK\2020.3.9\lib\x64\debug; $(ProjectDir)vendor\assimp\build\lib\Debug;</AdditionalLibraryDirectories>
+      <AdditionalDependencies>$(CoreLibraryDependencies);%(AdditionalDependencies); libfbxsdk-md.lib; libxml2-md.lib; zlib-md.lib; assimp-vc145-mtd.lib;</AdditionalDependencies>
       <AdditionalOptions>/ignore:4099 %(AdditionalOptions)</AdditionalOptions>
     </Link>
+    <PreBuildEvent>
+      <Command>set CMAKE_CONFIG=Debug
+set LIB_NAME=assimp-vc145-mtd.lib
+
+if "$(Configuration)"=="ReleaseEditor" (
+    set CMAKE_CONFIG=Release
+    set LIB_NAME=assimp-vc145-mt.lib
+)
+
+if not exist "$(ProjectDir)vendor\assimp\build\lib\%CMAKE_CONFIG%\%LIB_NAME%" (
+    cmake -S "$(ProjectDir)vendor\assimp" -B "$(ProjectDir)vendor\assimp\build" -DBUILD_SHARED_LIBS=OFF -DASSIMP_BUILD_TESTS=OFF -DASSIMP_BUILD_ASSIMP_TOOLS=OFF -DASSIMP_BUILD_ZLIB=ON
+    cmake --build "$(ProjectDir)vendor\assimp\build" --config %CMAKE_CONFIG%
+)</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">
     <ClCompile>
@@ -90,16 +104,30 @@
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>$(SolutionDir)Engine\Common; C:\Program Files\Autodesk\FBX\FBX SDK\2020.3.9\include;</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Engine\Common;C:\Program Files\Autodesk\FBX\FBX SDK\2020.3.9\include;$(ProjectDir)vendor\assimp\include;$(ProjectDir)vendor\assimp\build\include;</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalLibraryDirectories>C:\Program Files\Autodesk\FBX\FBX SDK\2020.3.9\lib\x64\release;</AdditionalLibraryDirectories>
-      <AdditionalDependencies>$(CoreLibraryDependencies);%(AdditionalDependencies); libfbxsdk-md.lib; libxml2-md.lib; zlib-md.lib;</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\Program Files\Autodesk\FBX\FBX SDK\2020.3.9\lib\x64\release;$(ProjectDir)vendor\assimp\build\lib\Release;</AdditionalLibraryDirectories>
+      <AdditionalDependencies>$(CoreLibraryDependencies);%(AdditionalDependencies); libfbxsdk-md.lib; libxml2-md.lib; zlib-md.lib;assimp-vc145-mt.lib;</AdditionalDependencies>
       <AdditionalOptions>/ignore:4099 %(AdditionalOptions)</AdditionalOptions>
     </Link>
+    <PreBuildEvent>
+      <Command>set CMAKE_CONFIG=Debug
+set LIB_NAME=assimp-vc145-mtd.lib
+
+if "$(Configuration)"=="ReleaseEditor" (
+    set CMAKE_CONFIG=Release
+    set LIB_NAME=assimp-vc145-mt.lib
+)
+
+if not exist "$(ProjectDir)vendor\assimp\build\lib\%CMAKE_CONFIG%\%LIB_NAME%" (
+    cmake -S "$(ProjectDir)vendor\assimp" -B "$(ProjectDir)vendor\assimp\build" -DBUILD_SHARED_LIBS=OFF -DASSIMP_BUILD_TESTS=OFF -DASSIMP_BUILD_ASSIMP_TOOLS=OFF -DASSIMP_BUILD_ZLIB=ON
+    cmake --build "$(ProjectDir)vendor\assimp\build" --config %CMAKE_CONFIG%
+)</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

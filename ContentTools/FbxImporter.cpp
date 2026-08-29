@@ -1,6 +1,10 @@
 #include "FbxImporter.h"
 #include "Geometry.h"
 
+#include <assimp/Importer.hpp>
+#include <assimp/scene.h>
+#include <assimp/postprocess.h>
+
 namespace mage::tools {
     namespace {
         std::mutex fbx_mutex{};
@@ -117,6 +121,7 @@ namespace mage::tools {
 
     void fbx_context::get_meshes(FbxNode* node) {
         assert(node);
+        bool is_lod_group = false;
 
         const i32 attribute_count = node->GetNodeAttributeCount();
         for (i32 i = 0; i < attribute_count; ++i) {
@@ -131,13 +136,16 @@ namespace mage::tools {
 
                 case FbxNodeAttribute::eLODGroup:
                     get_lod_group(attribute);
+                    is_lod_group = true;
                     return;
             }
         }
 
-        const i32 child_count = node->GetChildCount();
-        for (i32 i = 0; i < child_count; ++i) {
-            get_meshes(node->GetChild(i));
+        if (!is_lod_group) {
+            const i32 child_count = node->GetChildCount();
+            for (i32 i = 0; i < child_count; ++i) {
+                get_meshes(node->GetChild(i));
+            }
         }
     }
 
