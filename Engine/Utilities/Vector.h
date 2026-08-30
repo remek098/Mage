@@ -285,6 +285,77 @@ namespace mage::utl {
         }
 
         /// <summary>
+        /// Inserts elements from a range [first, last) starting at the given index or pointer.
+        /// </summary>
+        template<typename it, typename = std::enable_if_t<std::_Is_iterator_v<it>>>
+        constexpr T* insert(u64 index, it first, it last) {
+            assert(index <= _size);
+            return insert(std::addressof(_data[index]), first, last);
+        }
+
+        template<typename it, typename = std::enable_if_t<std::_Is_iterator_v<it>>>
+        constexpr T* insert(T* position, it first, it last) {
+            u64 count = std::distance(first, last);
+            if (count == 0) return position;
+
+            u64 index = position ? (position - _data) : _size;
+            assert(index <= _size);
+
+            reserve(_size + count);
+
+            // Re-evaluate pointer in case reserve reallocated memory
+            T* target = _data + index;
+
+            // Shift existing elements to the right to make room
+            if (index < _size) {
+                memmove(target + count, target, (_size - index) * sizeof(T));
+            }
+
+            // Copy new elements into the created gap
+            _size += count;
+            T* write_ptr = target;
+            for (; first != last; ++first, ++write_ptr) {
+                new (write_ptr) T(*first);
+            }
+
+            return target;
+        }
+
+        /// <summary>
+        /// Inserts an element at a specified index or pointer position.
+        /// </summary>
+        constexpr T* insert(u64 index, const T& value) {
+            return insert(index, &value, &value + 1);
+        }
+
+        constexpr T* insert(T* position, const T& value) {
+            return insert(position, &value, &value + 1);
+        }
+
+        constexpr T* insert(u64 index, T&& value) {
+            assert(index <= _size);
+            return insert(std::addressof(_data[index]), std::move(value));
+        }
+
+        constexpr T* insert(T* position, T&& value) {
+            u64 index = position ? (position - _data) : _size;
+            assert(index <= _size);
+
+            reserve(_size + 1);
+
+            T* target = _data + index;
+
+            if (index < _size) {
+                memmove(target + 1, target, (_size - index) * sizeof(T));
+            }
+
+            new (target) T(std::move(value));
+            ++_size;
+
+            return target;
+        }
+
+        /// <summary>
         /// Pointer to the start of data. Might be null.
         /// </summary>
         /// <returns></returns>

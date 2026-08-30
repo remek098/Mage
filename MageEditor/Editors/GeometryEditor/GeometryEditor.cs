@@ -340,19 +340,19 @@ namespace MageEditor.Editors
 
         public int MaxLODIndex { get; private set; }
 
-        private int? _lodIndex;
-        public int? LODIndex
+        private int _lodIndex;
+        public int LODIndex
         {
             get => _lodIndex;
             set
             {
                 var lods = Geometry.GetLODGroup()?.LODs;
-                if (value != null && lods != null) {
-                    value = Math.Clamp(value.Value, 0, lods.Count - 1);
+                if (/*value != null &&*/ lods != null) {
+                    value = Math.Clamp(value/*.Value*/, 0, lods.Count - 1);
                     if (_lodIndex != value) {
                         _lodIndex = value;
                         OnPropertyChanged(nameof(LODIndex));
-                        MeshRenderer = new MeshRenderer(lods[value.Value], MeshRenderer);
+                        MeshRenderer = new MeshRenderer(lods[value/*.Value*/], MeshRenderer);
                     }
                 }
             }
@@ -380,7 +380,7 @@ namespace MageEditor.Editors
                 Geometry = geo;
                 var numLods = geo.GetLODGroup()?.LODs.Count;
                 if(numLods != null && LODIndex >= numLods) {
-                    LODIndex = numLods -1;
+                    LODIndex = numLods.Value -1;
                 }
                 else {
                     MeshRenderer = new MeshRenderer(Geometry.GetLODGroup()?.LODs[0], MeshRenderer);

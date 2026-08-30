@@ -394,32 +394,48 @@ namespace mage::tools {
     }
 
     void scene::generate_default_lod_thresholds() {
-        constexpr f32 default_thresholds[] =
+        constexpr f32 base_threshold_multipliers[] =
         {
-            -1.0f,   // LOD0
-            10.0f,   // LOD1
-            25.0f,   // LOD2
-            50.0f,   // LOD3
-            100.0f,  // LOD4
-            200.0f,  // LOD5
+            -1.0f,   // LOD0 (Always active near camera)
+            1.5f,    // LOD1: distance >= 1.5x object size
+            3.0f,    // LOD2: distance >= 3.0x object size
+            6.0f,    // LOD3: distance >= 6.0x object size
+            12.0f,   // LOD4
+            24.0f,   // LOD5
         };
 
         for (auto& group : lod_groups) {
+            if (group.meshes.empty()) continue;
+
+            // Calculate bounding radius from LOD0 positions
+            f32 max_dist_sq = 0.0f;
+            for (const auto& pos : group.meshes[0].positions) {
+                f32 dist_sq = pos.x * pos.x + pos.y * pos.y + pos.z * pos.z;
+                if (std::isfinite(dist_sq) && dist_sq > max_dist_sq) {
+                    max_dist_sq = dist_sq;
+                }
+            }
+
+            f32 bounding_radius = std::sqrt(max_dist_sq);
+            // Enforce a sensible minimum bounding radius so controls don't lock
+            if (bounding_radius < 0.5f || !std::isfinite(bounding_radius)) {
+                bounding_radius = 1.0f;
+            }
+
             for (u32 i = 0; i < group.meshes.size(); ++i) {
                 mesh& m = group.meshes[i];
 
-                // Preserve thresholds imported from Maya.
-                if (m.lod_treshhold >= 0.0f)
-                    continue;
+                if (m.lod_treshhold >= 0.0f) continue;
 
-                if (i < std::size(default_thresholds)) {
-                    m.lod_treshhold = default_thresholds[i];
+                if (i == 0) {
+                    m.lod_treshhold = -1.0f;
+                }
+                else if (i < std::size(base_threshold_multipliers)) {
+                    m.lod_treshhold = base_threshold_multipliers[i] * bounding_radius;
                 }
                 else {
-                    // Continue doubling after the predefined values.
-                    m.lod_treshhold =
-                        default_thresholds[std::size(default_thresholds) - 1] *
-                        (1u << (i - (std::size(default_thresholds) - 1)));
+                    f32 last_mult = base_threshold_multipliers[std::size(base_threshold_multipliers) - 1];
+                    m.lod_treshhold = (last_mult * (1u << (i - (std::size(base_threshold_multipliers) - 1)))) * bounding_radius;
                 }
             }
         }
