@@ -80,7 +80,7 @@ namespace {
     //    mesh m{};
     //    m.name = group_name;
     //    m.lod_id = lod_id;
-    //    m.lod_treshhold = lod_threshold;
+    //    m.lod_treshold = lod_threshold;
 
     //    if (!get_mesh_data(fbx_mesh, m)) return;
 
@@ -414,7 +414,7 @@ void process_node(
         mesh m{};
         m.name = ai_mesh->mName.length > 0 ? ai_mesh->mName.C_Str() : node_name;
         m.lod_id = current_lod;
-        m.lod_treshhold = -1.0f;
+        m.lod_treshold = -1.0f;
 
         // Positions: Transform by node world matrix into unified Y-up space
         m.positions.reserve(ai_mesh->mNumVertices);
@@ -525,7 +525,7 @@ void consolidate_lod_meshes(scene& out_scene) {
         mesh combined_mesh{};
         combined_mesh.name = lod_group.name;
         combined_mesh.lod_id = lod_group.meshes[0].lod_id;
-        combined_mesh.lod_treshhold = lod_group.meshes[0].lod_treshhold;
+        combined_mesh.lod_treshold = lod_group.meshes[0].lod_treshold;
 
         u32 vertex_offset = 0;
 
@@ -596,14 +596,6 @@ void consolidate_all_lods_into_single_asset(scene& out_scene) {
 void import_fbx(const char* file_path, scene& out_scene, geometry_import_settings& settings) {
     Assimp::Importer importer;
 
-    /*const aiScene* ai_scene = importer.ReadFile(file_path,
-                                                aiProcess_Triangulate |
-                                                aiProcess_JoinIdenticalVertices |
-                                                aiProcess_SortByPType |
-                                                aiProcess_GenSmoothNormals |
-                                                aiProcess_CalcTangentSpace |
-                                                aiProcess_GlobalScale
-    );*/
     const aiScene* ai_scene = importer.ReadFile(file_path,
                                                 aiProcess_Triangulate |
                                                 aiProcess_JoinIdenticalVertices |
@@ -618,15 +610,14 @@ void import_fbx(const char* file_path, scene& out_scene, geometry_import_setting
 
     process_node(ai_scene, ai_scene->mRootNode, out_scene, settings, 0, false);
 
-    // 1. Merge parented sub-meshes within each LOD level (reduces 12 pieces -> 4 LOD meshes)
-    consolidate_lod_meshes(out_scene);
+    // that would merge all submeshes into one big mesh
+    // consolidate_lod_meshes(out_scene);
 
 
     // 2. Combine all 4 LOD levels into 1 single scene entity so exporter saves exactly 1 asset file
     consolidate_all_lods_into_single_asset(out_scene);
 
     out_scene.generate_default_lod_thresholds();
-    // out_scene.generate_default_lod_thresholds();
 }
 
 

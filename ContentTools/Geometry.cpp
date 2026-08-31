@@ -272,7 +272,7 @@ namespace mage::tools {
             memcpy(&buffer[at], &s, sizeu32); at += sizeu32;
 
             // LOD treshold
-            memcpy(&buffer[at], &m.lod_treshhold, sizeof(f32)); at += sizeof(f32);
+            memcpy(&buffer[at], &m.lod_treshold, sizeof(f32)); at += sizeof(f32);
 
             // vertex data
             s = vertex_size * num_vertices;
@@ -294,7 +294,7 @@ namespace mage::tools {
 
         bool split_meshes_by_material(u32 material_id, const mesh& m, mesh& submesh) {
             submesh.name = m.name;
-            submesh.lod_treshhold = m.lod_treshhold;
+            submesh.lod_treshold = m.lod_treshold;
             submesh.lod_id = m.lod_id;
             submesh.material_used.emplace_back(material_id);
             submesh.uv_sets.resize(m.uv_sets.size());
@@ -425,17 +425,17 @@ namespace mage::tools {
             for (u32 i = 0; i < group.meshes.size(); ++i) {
                 mesh& m = group.meshes[i];
 
-                if (m.lod_treshhold >= 0.0f) continue;
+                if (m.lod_treshold >= 0.0f) continue;
 
                 if (i == 0) {
-                    m.lod_treshhold = -1.0f;
+                    m.lod_treshold = -1.0f;
                 }
                 else if (i < std::size(base_threshold_multipliers)) {
-                    m.lod_treshhold = base_threshold_multipliers[i] * bounding_radius;
+                    m.lod_treshold = base_threshold_multipliers[i] * bounding_radius;
                 }
                 else {
                     f32 last_mult = base_threshold_multipliers[std::size(base_threshold_multipliers) - 1];
-                    m.lod_treshhold = (last_mult * (1u << (i - (std::size(base_threshold_multipliers) - 1)))) * bounding_radius;
+                    m.lod_treshold = (last_mult * (1u << (i - (std::size(base_threshold_multipliers) - 1)))) * bounding_radius;
                 }
             }
         }

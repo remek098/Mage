@@ -18,6 +18,33 @@ namespace MageEditor.Editors
     //       When we will have renderer, this class and the WPF viewer will become obsolete.
     class MeshRendererVertexData : ViewModelBase
     {
+        private bool _isHighlighted;
+        public bool IsHighlighted
+        {
+            get => _isHighlighted;
+            set
+            {
+                if(_isHighlighted != value) {
+                    _isHighlighted = value;
+                    OnPropertyChanged(nameof(IsHighlighted));
+                    OnPropertyChanged(nameof(Diffuse));
+                }
+            }
+        }
+
+        private bool _isIsolated;
+        public bool IsIsolated
+        {
+            get => _isIsolated;
+            set
+            {
+                if (_isIsolated != value) {
+                    _isIsolated = value;
+                    OnPropertyChanged(nameof(IsIsolated));
+                }
+            }
+        }
+
         // Brush is dependency object, this class is temporary, so we will allow it for now
         public Brush _specular = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#ff111111")); // dark grey specular color
         public Brush Specular
@@ -37,7 +64,7 @@ namespace MageEditor.Editors
         public Brush _diffuse = Brushes.White;
         public Brush Diffuse
         {
-            get => _diffuse;
+            get => _isHighlighted ? Brushes.Orange : _diffuse;
             set
             {
                 if (_diffuse != value)
@@ -48,6 +75,7 @@ namespace MageEditor.Editors
             }
         }
 
+        public string Name { get; set; }
 
         public Point3DCollection Positions { get; } = new Point3DCollection();
         public Vector3DCollection Normals { get; } = new Vector3DCollection();
@@ -191,7 +219,7 @@ namespace MageEditor.Editors
 
             foreach(var mesh in lod.Meshes )
             {
-                var vertexData = new MeshRendererVertexData();
+                var vertexData = new MeshRendererVertexData() { Name = mesh.Name };
                 // unpack all vertices -> data from m.packed_static_vertices.data() in mage::tools::pack_mesh_data() function
                 using (var reader = new BinaryReader(new MemoryStream(mesh.Vertices)))
                 {
@@ -253,6 +281,14 @@ namespace MageEditor.Editors
             {
                 CameraTarget = old.CameraTarget;
                 CameraPosition = old.CameraPosition;
+
+                // NOTE: this is only for primitive meshes with multiple LODs, becaause they're displayed  with textures:
+                foreach(var mesh in old.Meshes) {
+                    mesh.IsHighlighted = false;
+                }
+                foreach (var mesh in Meshes) {
+                    mesh.Diffuse = old.Meshes.First().Diffuse;
+                }
             }
             else
             {

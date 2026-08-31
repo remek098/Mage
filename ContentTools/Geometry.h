@@ -42,7 +42,7 @@ namespace mage::tools {
         // output data -> result of vertex processing
         std::string                                 name;
         utl::vector<packed_vertex::static_vertex>   packed_static_vertices; // packed vertices for use in shader
-        f32                                         lod_treshhold{ -1.f }; // lod_treshhold telling when to switch to another LOD
+        f32                                         lod_treshold{ -1.f }; // lod_treshold telling when to switch to another LOD
         u32                                         lod_id{ u32_invalid_id }; // denotes which meshes belong together in one LOD object
     };
 

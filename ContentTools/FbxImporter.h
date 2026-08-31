@@ -1,6 +1,6 @@
 #pragma once
 #include "ToolsCommon.h"
-#include <fbxsdk.h>
+// #include <fbxsdk.h>
 
 namespace mage::tools {
     // forward declerations of structs from Geometry.h
