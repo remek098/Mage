@@ -26,21 +26,33 @@ namespace MageEditor.Content
         Capsule
     }
 
+    enum ElementsType
+    {
+        Position = 0x00,
+        Normals = 0x01,
+        TSpace = 0x03,
+        Colors = 0x04,
+        Joints = 0x08,
+    }
+
     class Mesh : ViewModelBase
     {
-        private int _vertexSize;
-        public int VertexSize
+        public static int PositionSize = sizeof(float) * 3;
+
+        private int _elementSize;
+        public int ElementSize
         {
-            get => _vertexSize;
+            get => _elementSize;
             set
             {
-                if (_vertexSize != value)
-                {
-                    _vertexSize = value;
-                    OnPropertyChanged(nameof(VertexSize));
+                if (_elementSize != value) {
+                    _elementSize = value;
+                    OnPropertyChanged(nameof(ElementSize));
                 }
             }
         }
+
+        
 
         private int _vertexCount;
         public int VertexCount
@@ -98,7 +110,10 @@ namespace MageEditor.Content
             }
         }
 
-        public byte[] Vertices { get; set; }
+        public ElementsType ElementsType { get; set; }
+
+        public byte[] Positions { get; set; }
+        public byte[] Elements { get; set; }
         public byte[] Indices { get; set; }
     }
 
@@ -301,7 +316,16 @@ namespace MageEditor.Content
 
             using var reader = new BinaryReader(new MemoryStream(data));
             // we will basically read data according to how it was packed/saved in mage::tools::pack_data()
-            
+            //List<MeshLOD> lods = ReadScene(reader);
+
+            //if (lods.Count > 0) {
+            //    // Group the parsed LODs into a main LODGroup container
+            //    var lodGroup = new LODGroup() { Name = lods[0].Name };
+            //    lods.ForEach(l => lodGroup.LODs.Add(l));
+            //    _lodGroups.Add(lodGroup);
+            //}
+
+
             // skip scene name string -> since we don't use it for now
             var s = reader.ReadInt32();
             reader.BaseStream.Position += s; // skipping scene name
@@ -309,18 +333,15 @@ namespace MageEditor.Content
             var numLODGroups = reader.ReadInt32();
             Debug.Assert(numLODGroups > 0);
 
-            for(int i = 0; i < numLODGroups; ++i)
-            {
+            for (int i = 0; i < numLODGroups; ++i) {
                 // get LOD group's name
                 s = reader.ReadInt32();
                 string lodGroupName;
-                if(s > 0)
-                {
+                if (s > 0) {
                     var nameBytes = reader.ReadBytes(s);
                     lodGroupName = Encoding.UTF8.GetString(nameBytes);
                 }
-                else
-                {
+                else {
                     lodGroupName = $"lod_{ContentHelper.GetRandomString()}";
                 }
 
@@ -365,18 +386,21 @@ namespace MageEditor.Content
             }
 
             var mesh = new Mesh() { Name = meshName };
+
             var lodID = reader.ReadInt32();
-            mesh.VertexSize = reader.ReadInt32();
+            mesh.ElementSize = reader.ReadInt32();
+            mesh.ElementsType = (ElementsType)reader.ReadInt32();
             mesh.VertexCount = reader.ReadInt32();
             mesh.IndexSize = reader.ReadInt32();
             mesh.IndexCount = reader.ReadInt32();
             var lodTreshold = reader.ReadSingle(); // treshold is packed as f32
 
             // sizes of vertex and index buffers
-            var vBufferSize = mesh.VertexSize * mesh.VertexCount;
+            var elementBufferSize = mesh.ElementSize * mesh.VertexCount;
             var iBufferSize = mesh.IndexSize * mesh.IndexCount;
 
-            mesh.Vertices = reader.ReadBytes(vBufferSize);
+            mesh.Positions = reader.ReadBytes(Mesh.PositionSize * mesh.VertexCount);
+            mesh.Elements = reader.ReadBytes(elementBufferSize);
             mesh.Indices = reader.ReadBytes(iBufferSize);
 
             MeshLOD lod;
@@ -533,7 +557,7 @@ namespace MageEditor.Content
             return savedFiles;
         }
 
-        
+       
 
         private void LODToBinary(MeshLOD lod, BinaryWriter writer, out byte[]? hash)
         {
@@ -549,11 +573,13 @@ namespace MageEditor.Content
             // we can have same mesh with diffrent names, but that shouldn't matter, since it's still a duplicate.
             foreach(var mesh in lod.Meshes) {
                 writer.Write(mesh.Name);
-                writer.Write(mesh.VertexSize);
+                writer.Write(mesh.ElementSize);
+                writer.Write((int)mesh.ElementsType);
                 writer.Write(mesh.VertexCount);
                 writer.Write(mesh.IndexSize);
                 writer.Write(mesh.IndexCount);
-                writer.Write(mesh.Vertices);
+                writer.Write(mesh.Positions);
+                writer.Write(mesh.Elements);
                 writer.Write(mesh.Indices);
             }
             var meshDataSize = writer.BaseStream.Position - meshDataBeginWriterPosition;
@@ -574,12 +600,14 @@ namespace MageEditor.Content
             for(int i=0; i<meshCount; ++i) {
                 var mesh = new Mesh() {
                     Name = reader.ReadString(),
-                    VertexSize = reader.ReadInt32(),
+                    ElementSize = reader.ReadInt32(),
+                    ElementsType = (ElementsType)reader.ReadInt32(),
                     VertexCount = reader.ReadInt32(),
                     IndexSize = reader.ReadInt32(),
                     IndexCount = reader.ReadInt32()
                 };
-                mesh.Vertices = reader.ReadBytes(mesh.VertexSize *  mesh.VertexCount);
+                mesh.Positions = reader.ReadBytes(Mesh.PositionSize *  mesh.VertexCount);
+                mesh.Elements = reader.ReadBytes(mesh.ElementSize * mesh.VertexCount);
                 mesh.Indices = reader.ReadBytes(mesh.IndexCount * mesh.IndexSize);
 
                 lod.Meshes.Add(mesh);
@@ -602,9 +630,9 @@ namespace MageEditor.Content
             {
                 bmp = Editors.GeometryView.RenderToBitmap(new Editors.MeshRenderer(lod, null), width, width);
                 bmp = new TransformedBitmap(bmp, new ScaleTransform(0.25, 0.25, 0.5, 0.5));
-                
+
                 memoryStream.SetLength(0);
-                
+
                 // encode a bitmap we just rendered into .png format
                 var encoder = new PngBitmapEncoder();
                 encoder.Frames.Add(BitmapFrame.Create(bmp));
@@ -614,6 +642,8 @@ namespace MageEditor.Content
 
             return memoryStream.ToArray(); // return a stream that contains out .png image
         }
+
+
 
         public Geometry() : base(AssetType.Mesh)
         {

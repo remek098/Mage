@@ -402,8 +402,16 @@ void process_node(
         }
     }
 
-    // Pre-calculate 3x3 rotation matrix for normals/tangents
     aiMatrix3x3 rotation_matrix(world_transform);
+
+    // 1. Standard 3x3 for Tangents/Bitangents (Direction vectors)
+    aiMatrix3x3 tangent_matrix(world_transform);
+
+    // 2. Inverse Transpose 3x3 for Normals (Surface perpendiculars)
+    aiMatrix4x4 inverse_transpose = world_transform;
+    inverse_transpose.Inverse();
+    inverse_transpose.Transpose();
+    aiMatrix3x3 normal_matrix(inverse_transpose);
 
     for (unsigned int i = 0; i < node->mNumMeshes; ++i) {
         unsigned int mesh_idx = node->mMeshes[i];
@@ -439,13 +447,29 @@ void process_node(
 
         // Normals: Transform by node rotation matrix
         const bool import_normals = !settings.calculate_normals;
-        if (import_normals && ai_mesh->HasNormals()) {
+        /*if (import_normals && ai_mesh->HasNormals()) {
             m.normals.reserve(num_indices);
             for (unsigned int f = 0; f < ai_mesh->mNumFaces; ++f) {
                 const aiFace& face = ai_mesh->mFaces[f];
                 for (unsigned int idx = 0; idx < face.mNumIndices; ++idx) {
                     u32 v_idx = face.mIndices[idx];
                     aiVector3D n = rotation_matrix * ai_mesh->mNormals[v_idx];
+                    m.normals.push_back({ n.x, n.y, n.z });
+                }
+            }
+        }*/
+        if (import_normals && ai_mesh->HasNormals()) {
+            m.normals.reserve(num_indices);
+            for (unsigned int f = 0; f < ai_mesh->mNumFaces; ++f) {
+                const aiFace& face = ai_mesh->mFaces[f];
+                for (unsigned int idx = 0; idx < face.mNumIndices; ++idx) {
+                    u32 v_idx = face.mIndices[idx];
+
+                    // Transform by Inverse-Transpose matrix and Normalize
+                    aiVector3D n = normal_matrix * ai_mesh->mNormals[v_idx];
+                    // aiVector3D n = ai_mesh->mNormals[v_idx];
+                    n.Normalize();
+
                     m.normals.push_back({ n.x, n.y, n.z });
                 }
             }
@@ -456,7 +480,7 @@ void process_node(
 
         // Tangents: Transform by node rotation matrix
         const bool import_tangents = !settings.calculate_tangents;
-        if (import_tangents && ai_mesh->HasTangentsAndBitangents()) {
+        /*if (import_tangents && ai_mesh->HasTangentsAndBitangents()) {
             m.tangents.reserve(num_indices);
             for (unsigned int f = 0; f < ai_mesh->mNumFaces; ++f) {
                 const aiFace& face = ai_mesh->mFaces[f];
@@ -466,6 +490,28 @@ void process_node(
                     aiVector3D b = rotation_matrix * ai_mesh->mBitangents[v_idx];
                     aiVector3D n = rotation_matrix * ai_mesh->mNormals[v_idx];
 
+                    float handedness = ((n ^ t) * b < 0.0f) ? -1.0f : 1.0f;
+                    m.tangents.push_back({ t.x, t.y, t.z, handedness });
+                }
+            }
+        }*/
+        if (import_tangents && ai_mesh->HasTangentsAndBitangents()) {
+            m.tangents.reserve(num_indices);
+            for (unsigned int f = 0; f < ai_mesh->mNumFaces; ++f) {
+                const aiFace& face = ai_mesh->mFaces[f];
+                for (unsigned int idx = 0; idx < face.mNumIndices; ++idx) {
+                    u32 v_idx = face.mIndices[idx];
+
+                    // Transform by Tangent matrix and Normalize individually
+                    aiVector3D t = tangent_matrix * ai_mesh->mTangents[v_idx];
+                    aiVector3D b = tangent_matrix * ai_mesh->mBitangents[v_idx];
+                    aiVector3D n = normal_matrix * ai_mesh->mNormals[v_idx]; // uses inverse_transpose of world matrix.
+
+                    t.Normalize();
+                    b.Normalize();
+                    n.Normalize();
+
+                    // Calculate handedness sign
                     float handedness = ((n ^ t) * b < 0.0f) ? -1.0f : 1.0f;
                     m.tangents.push_back({ t.x, t.y, t.z, handedness });
                 }
@@ -614,7 +660,7 @@ void import_fbx(const char* file_path, scene& out_scene, geometry_import_setting
     // consolidate_lod_meshes(out_scene);
 
 
-    // 2. Combine all 4 LOD levels into 1 single scene entity so exporter saves exactly 1 asset file
+    // all LOD levels into 1 single scene object so exporter saves exactly 1 asset file
     consolidate_all_lods_into_single_asset(out_scene);
 
     out_scene.generate_default_lod_thresholds();

@@ -198,12 +198,6 @@ namespace MageEditor.Editors
         public MeshRenderer(MeshLOD? lod, MeshRenderer? old)
         {
             Debug.Assert(lod?.Meshes.Any() == true);
-            // calculate vertex size minus the position and normal vectors.
-            // in mage::tools::packed_vertex there's some informations that we don't want to use here, e.g. u8 reversed[3], u16 tangent[2]
-            // we skip over math::vec3 position (3 floats), 4 bytes for reserved[] and t_sign (sizeof int), 2*sizeof(short) for skipping normals
-            // size of vertex is sizeof(mage::tools::packed_vertex::static_vertex) which is 32 bytes
-            // therefore offset = 12 (unless size of vertex changes in future ofc)
-            var offset = lod.Meshes[0].VertexSize - 3 * sizeof(float) -sizeof(int) - 2 * sizeof(short);
             // later on when we want to read UVs, we have to skip tangents as well
 
             // figure out BoundingBox, also where the avarage normal of the object is pointing to.
@@ -221,17 +215,13 @@ namespace MageEditor.Editors
             {
                 var vertexData = new MeshRendererVertexData() { Name = mesh.Name };
                 // unpack all vertices -> data from m.packed_static_vertices.data() in mage::tools::pack_mesh_data() function
-                using (var reader = new BinaryReader(new MemoryStream(mesh.Vertices)))
-                {
-                    for(int i = 0; i < mesh.VertexCount; ++i)
-                    {
+                using (var reader = new BinaryReader(new MemoryStream(mesh.Positions)))
+                    for (int i = 0; i < mesh.VertexCount; ++i) {
                         // read positions
                         var posX = reader.ReadSingle();
                         var posY = reader.ReadSingle();
                         var posZ = reader.ReadSingle();
-                        // normal Z (sign) was included in 2nd bit of sign int, so we shift to the right, so we get last byte (u8)
-                        // and bitwise AND just to be sure, we read these last byte
-                        var signs = (reader.ReadUInt32() >> 24) & 0x000000ff;
+                        
                         vertexData.Positions.Add(new Point3D(posX, posY, posZ));
 
                         // adjust BoundingBox
@@ -239,26 +229,44 @@ namespace MageEditor.Editors
                         minY = Math.Min(minY, posY); maxY = Math.Max(maxY, posY);
                         minZ = Math.Min(minZ, posZ); maxZ = Math.Max(maxZ, posZ);
 
-                        // read normals
-                       
-                        var normalX = reader.ReadUInt16() * intervals - 1.0f;
-                        var normalY = reader.ReadUInt16() * intervals - 1.0f;
-                        // pythagorean formula to calculate unit value
-                        // sign for normalZ is packed in 2nd bit of signs value
-                        var normalZ = Math.Sqrt(Math.Clamp(1f - (normalX * normalX + normalY * normalY), 0f, 1f)) * ((signs&0x2) - 1f);
-                        var normal = new Vector3D(normalX, normalY, normalZ);
-                        normal.Normalize();
-                        vertexData.Normals.Add(normal);
-                        avgNormal += normal;
-
-                        // read UVs (skip tangent and joint data)
-                        reader.BaseStream.Position += (offset - sizeof(float) * 2); // skip tangents (12 - 8) = 4
-                        // read UV from vec2
-                        var u  = reader.ReadSingle();
-                        var v = reader.ReadSingle();
-                        vertexData.UVs.Add(new Point(u, v));
                     }
+                  
+
+                if(mesh.ElementsType.HasFlag(ElementsType.Normals)) {
+                    var tSpaceOffset = 0;
+                    if (mesh.ElementsType.HasFlag(ElementsType.Joints)) tSpaceOffset = sizeof(short) * 4; // skip joint indices.
+                    // read tangent space
+                    using (var reader = new BinaryReader(new MemoryStream(mesh.Elements)))
+                        for (int i = 0; i < mesh.VertexCount; ++i) {
+                            // normal Z (sign) was included in 2nd bit of sign int, so we shift to the right, so we get last byte (u8)
+                            // and bitwise AND just to be sure, we read these last byte
+                            var signs = (reader.ReadUInt32() >> 24) & 0x000000ff;
+                            reader.BaseStream.Position += tSpaceOffset;
+                            // read normals
+                            var normalX = reader.ReadUInt16() * intervals - 1.0f;
+                            var normalY = reader.ReadUInt16() * intervals - 1.0f;
+                            // pythagorean formula to calculate unit value
+                            // sign for normalZ is packed in 2nd bit of signs value
+                            var normalZ = Math.Sqrt(Math.Clamp(1f - (normalX * normalX + normalY * normalY), 0f, 1f)) * ((signs & 0x2) - 1f);
+                            var normal = new Vector3D(normalX, normalY, normalZ);
+                            normal.Normalize();
+                            vertexData.Normals.Add(normal);
+                            avgNormal += normal;
+
+                            // read UVs
+                            if(mesh.ElementsType.HasFlag(ElementsType.TSpace)) {
+                                reader.BaseStream.Position += sizeof(short) * 2; // skip tangents
+                                var u = reader.ReadSingle();
+                                var v = reader.ReadSingle();
+                                vertexData.UVs.Add(new Point(u, v));
+                            }
+
+                            if(mesh.ElementsType.HasFlag(ElementsType.Joints) && mesh.ElementsType.HasFlag(ElementsType.Colors)) {
+                                reader.BaseStream.Position += 4; // skip colors.
+                            }
+                        }
                 }
+                
 
                 // unpacking indices -> indices data copied to buffer at the end of mage::tools::pack_mesh_data() function
                 using (var reader = new BinaryReader(new MemoryStream(mesh.Indices)))
