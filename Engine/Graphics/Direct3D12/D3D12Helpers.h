@@ -14,6 +14,14 @@ namespace mage::gfx::d3d12::d3dx {
                 0,                                              // CreationNodeMask;
                 0                                               // VisibleNodeMask;
         };
+
+        const D3D12_HEAP_PROPERTIES upload_heap{
+                D3D12_HEAP_TYPE_UPLOAD,                         // Type;
+                D3D12_CPU_PAGE_PROPERTY_UNKNOWN,                // CPUPageProperty;
+                D3D12_MEMORY_POOL_UNKNOWN,                      // MemoryPoolPreference;
+                0,                                              // CreationNodeMask;
+                0                                               // VisibleNodeMask;
+        };
     } heap_properties;
 
 
@@ -275,4 +283,20 @@ namespace mage::gfx::d3d12::d3dx {
 
     ID3D12PipelineState* create_pipeline_state(D3D12_PIPELINE_STATE_STREAM_DESC desc);
     ID3D12PipelineState* create_pipeline_state(void* stream, u64 stream_size);
+
+/// <summary>
+/// If you provide heap param, it will create a placed resource instead of committed resource.
+/// </summary>
+/// <param name="data"></param>
+/// <param name="buffer_size"></param>
+/// <param name="is_cpu_visible"></param>
+/// <param name="state"></param>
+/// <param name="flags"></param>
+/// <param name="heap"></param>
+/// <returns></returns>
+ID3D12Resource* create_buffer(const void* data, u32 buffer_size,
+                              bool is_cpu_accessible = false,
+                              D3D12_RESOURCE_STATES state = D3D12_RESOURCE_STATE_COMMON,
+                              D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE,
+                              ID3D12Heap* heap = nullptr, u64 heap_offset = 0);
 } // namespace mage::gfx::d3d12::d3dx

@@ -3,6 +3,7 @@
 #include "D3D12Shaders.h"
 #include "D3D12GPass.h"
 #include "D3D12PostProcess.h"
+#include "D3D12Upload.h"
 
 using namespace Microsoft::WRL;
 
@@ -61,6 +62,7 @@ namespace mage::gfx::d3d12::core {
                 
                 _fence_event = CreateEventEx(nullptr, nullptr, 0, EVENT_ALL_ACCESS);
                 assert(_fence_event);
+                if(!_fence_event) goto _error;
 
                 return;
             _error:
@@ -339,7 +341,8 @@ namespace mage::gfx::d3d12::core {
         // initialize modules
         if (!(shaders::initialize() && 
               gpass::initialize() && 
-              fx::initialize())) {
+              fx::initialize() && 
+              upload::initialize())) {
             return failed_init();
         }
 
@@ -362,6 +365,7 @@ namespace mage::gfx::d3d12::core {
         }
 
         // shutdown modules.
+        upload::shutdown();
         fx::shutdown();
         gpass::shutdown();
         shaders::shutdown();

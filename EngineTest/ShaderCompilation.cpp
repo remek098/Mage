@@ -127,7 +127,7 @@ namespace {
     private:
         // NOTE: we have to use shader model 6.0 or later to be able to use DXC. AS and MS are supported only from SM6.5 onwards.
         constexpr static const char* _profile_strings[]{
-            "vs_6_5", "hs_6_5", "ds_6_5", "gs_6_5", "ps_6_5", "cs_6_5", "as_6_5", "ms_6_5"
+            "vs_6_6", "hs_6_6", "ds_6_6", "gs_6_6", "ps_6_6", "cs_6_6", "as_6_6", "ms_6_6"
         };
         static_assert(_countof(_profile_strings) == shader_type::count);
 
