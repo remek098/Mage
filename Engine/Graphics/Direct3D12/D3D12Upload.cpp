@@ -78,6 +78,7 @@ bool init_failed() {
 } // anonymous namespace
 
 d3d12_upload_context::d3d12_upload_context(u32 aligned_size) {
+    assert(upload_cmd_queue);
     {
         // we don't want to lock this function for longer than necessary. So, we scope this lock.
         std::lock_guard lock{frame_mutex};

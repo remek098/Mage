@@ -47,7 +47,7 @@ namespace mage::math {
         return unpack_to_unit_float<bits>(i) * (max - min) + min; // literally reverse of pack_float
     }
 
-    // align by rounding up. Will result in a multiple of "alignment"
+    // align by rounding up. Will result in a multiple of "alignment" that is greater than or equal to 'size'
     template<u64 alignment>
     constexpr u64 align_size_up(u64 size) {
         /*
@@ -66,7 +66,7 @@ namespace mage::math {
         return((size + mask) & ~mask);
     }
 
-    // align by rounding down. Will result in a multiple of "alignment"
+    // align by rounding down. Will result in a multiple of "alignment" that is less than or equal to 'size'
     template<u64 alignment>
     constexpr u64 align_size_down(u64 size) {
         static_assert(alignment, "Alignment must be non-zero.");

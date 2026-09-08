@@ -7,20 +7,16 @@
 namespace mage::gfx::d3d12::content {
 
 namespace {
-struct position_view {
+struct submesh_view {
     D3D12_VERTEX_BUFFER_VIEW            position_buffer_view{};
-    D3D12_INDEX_BUFFER_VIEW             index_buffer_view{};
-};
-
-struct element_view {
     D3D12_VERTEX_BUFFER_VIEW            element_buffer_view{};
-    u32                                 element_type{};
+    D3D12_INDEX_BUFFER_VIEW             index_buffer_view{};
     D3D_PRIMITIVE_TOPOLOGY              primitive_topology;
+    u32                                 element_type{};
 };
 
 utl::free_list<ID3D12Resource*>         submesh_buffers{};
-utl::free_list<position_view>           position_views{};
-utl::free_list<element_view>            element_views{};
+utl::free_list<submesh_view>            submesh_views{};
 
 std::mutex                              submesh_mutex{};
 
@@ -86,36 +82,34 @@ id::id_type add(const u8*& data) {
     blob.skip(total_buffer_size); // skip because created buffer/resource already uses that data.
     data = blob.position();
 
-    position_view position_view{};
-    position_view.position_buffer_view.BufferLocation = resource->GetGPUVirtualAddress(); // first buffer within that resource.
-    position_view.position_buffer_view.SizeInBytes = position_buffer_size;
-    position_view.position_buffer_view.StrideInBytes = sizeof(math::vec3);
+    submesh_view view{};
+    view.position_buffer_view.BufferLocation = resource->GetGPUVirtualAddress(); // first buffer within that resource.
+    view.position_buffer_view.SizeInBytes = position_buffer_size;
+    view.position_buffer_view.StrideInBytes = sizeof(math::vec3);
 
-    // index buffer is 3rd buffer in uploaded resource. -> offset accordingly.
-    position_view.index_buffer_view.BufferLocation = resource->GetGPUVirtualAddress() + aligned_position_buffer_size + aligned_element_buffer_size;
-    position_view.index_buffer_view.Format = (index_size == sizeof(u16)) ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT;
-    position_view.index_buffer_view.SizeInBytes = index_buffer_size;
-
-    element_view element_view{};
     if (element_size) {
         // 2nd buffer in uploaded resource.
-        element_view.element_buffer_view.BufferLocation = resource->GetGPUVirtualAddress() + aligned_position_buffer_size; 
-        element_view.element_buffer_view.SizeInBytes = element_buffer_size;
-        element_view.element_buffer_view.StrideInBytes = element_size;
+        view.element_buffer_view.BufferLocation = resource->GetGPUVirtualAddress() + aligned_position_buffer_size; 
+        view.element_buffer_view.SizeInBytes = element_buffer_size;
+        view.element_buffer_view.StrideInBytes = element_size;
     }
-    element_view.element_type = elements_type;
-    element_view.primitive_topology = get_d3d_primitive_topology((mage::content::primitive_topology::type)primitive_topology);
+
+    // index buffer is 3rd buffer in uploaded resource. -> offset accordingly.
+    view.index_buffer_view.BufferLocation = resource->GetGPUVirtualAddress() + aligned_position_buffer_size + aligned_element_buffer_size;
+    view.index_buffer_view.Format = (index_size == sizeof(u16)) ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT;
+    view.index_buffer_view.SizeInBytes = index_buffer_size;
+
+    view.primitive_topology = get_d3d_primitive_topology((mage::content::primitive_topology::type)primitive_topology);
+    view.element_type = elements_type;
 
     std::lock_guard lock{ submesh_mutex }; // locking data of utl::vectors before modifying them.
     submesh_buffers.add(resource);
-    position_views.add(position_view);
-    return element_views.add(element_view);
+    return submesh_views.add(view);
 }
 
 void remove(id::id_type id) {
     std::lock_guard lock{ submesh_mutex };
-    position_views.remove(id);
-    element_views.remove(id);
+    submesh_views.remove(id);
 
     core::deferred_release(submesh_buffers[id]);
     submesh_buffers.remove(id);
