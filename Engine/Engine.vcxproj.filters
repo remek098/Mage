@@ -34,6 +34,7 @@
     <ClInclude Include="Platform\IncludeWindowCpp.h" />
     <ClInclude Include="Utilities\IOStreamUtils.h" />
     <ClInclude Include="Graphics\Direct3D12\D3D12Upload.h" />
+    <ClInclude Include="Graphics\Direct3D12\D3D12Content.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Components\Entity.cpp" />
