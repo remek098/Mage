@@ -22,6 +22,11 @@ namespace mage::gfx {
             void(*render)(surface_id);
         } surface;
 
+        struct {
+            id::id_type (*add_submesh)(const u8*&);
+            void (*remove_submesh)(id::id_type);
+        } resources;
+
         gfx_platform platform = (gfx_platform)-1;
     };
 }
