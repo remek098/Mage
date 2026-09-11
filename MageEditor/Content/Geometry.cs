@@ -35,6 +35,15 @@ namespace MageEditor.Content
         Joints = 0x08,
     }
 
+    enum PrimitiveTopology
+    {
+        PointList = 1,
+        LineList,
+        LineStrip,
+        TriangleList,
+        TriangleStrip,
+    }
+
     class Mesh : ViewModelBase
     {
         public static int PositionSize = sizeof(float) * 3;
@@ -111,6 +120,8 @@ namespace MageEditor.Content
         }
 
         public ElementsType ElementsType { get; set; }
+        public PrimitiveTopology PrimitiveTopology { get; set; }
+
 
         public byte[] Positions { get; set; }
         public byte[] Elements { get; set; }
@@ -134,7 +145,7 @@ namespace MageEditor.Content
         }
 
         private float _lodTreshold;
-        public float LODTreshold
+        public float LODThreshold
         {
             get => _lodTreshold;
             set
@@ -142,7 +153,7 @@ namespace MageEditor.Content
                 if (_lodTreshold != value)
                 {
                     _lodTreshold = value;
-                    OnPropertyChanged(nameof(LODTreshold));
+                    OnPropertyChanged(nameof(LODThreshold));
                 }
             }
         }
@@ -390,6 +401,7 @@ namespace MageEditor.Content
             var lodID = reader.ReadInt32();
             mesh.ElementSize = reader.ReadInt32();
             mesh.ElementsType = (ElementsType)reader.ReadInt32();
+            mesh.PrimitiveTopology = PrimitiveTopology.TriangleList; // ContentTools only supports TriangleList for now.
             mesh.VertexCount = reader.ReadInt32();
             mesh.IndexSize = reader.ReadInt32();
             mesh.IndexCount = reader.ReadInt32();
@@ -414,7 +426,7 @@ namespace MageEditor.Content
             {
                 // otherwise we need to create a new MeshLOD
                 lodIDs.Add(lodID); // add it so we can look it up later
-                lod = new MeshLOD() { Name = meshName, LODTreshold = lodTreshold };
+                lod = new MeshLOD() { Name = meshName, LODThreshold = lodTreshold };
                 lodList.Add(lod);
             }
             lod.Meshes.Add(mesh);
@@ -489,6 +501,10 @@ namespace MageEditor.Content
                     _lodGroups.Clear();
                     _lodGroups.Add(lodGroup);
                 }
+
+                // for testing!!! Remove it later!!!
+                // PackForEngine();
+                // for testing!!! Remove it later!!!
             }
             catch (Exception ex) {
                 Debug.WriteLine("--- Occured in Geometry.Load() " + ex.Message);
@@ -557,12 +573,85 @@ namespace MageEditor.Content
             return savedFiles;
         }
 
-       
+        /// <summary>
+        /// Packs the geometry into byte array which can be used by the engine.
+        /// </summary>
+        /// <returns>
+        /// A byte array that contains:
+        /// struct {
+        ///	    u32 lod_count;
+        ///     struct {
+        ///         f32 lod_treshold,
+        ///         u32 submesh_count,
+        ///	    	u32 size_of_submeshes,
+        ///        
+        ///         struct {
+        ///             u32 element_size, u32 vertex_count,
+        ///	    		u32 index_count, u32 elements_type, u32 primitive_topology,
+        ///             u8 positions[sizeof(f32) * 3 * vertex_count], // sizeof(positions) must be a multiple of 4 bytes.
+        ///	    													  // Pad if needed.
+        ///	    		u8 elements[sizeof(element_size) * vertex_count], // sizeof(elements) must be a multiple of 4 bytes.
+        ///                                                                  // Pad if needed.
+        ///             u8 indices[index_size * index_count]
+        ///         } submeshes[submesh_count]
+        ///     } mesh_lods[lod_count]
+        /// } geometry;
+        /// </returns>
+        public override byte[] PackForEngine()
+        {
+            byte[]? data = null;
+            using var writer = new BinaryWriter(new MemoryStream());
+            var lod_group = GetLODGroup();
+            if (lod_group != null) {
+                writer.Write(lod_group.LODs.Count);
+                foreach (var lod in lod_group.LODs) {
+                    writer.Write(lod.LODThreshold);
+                    writer.Write(lod.Meshes.Count);
+                    var sizeOfSubmeshesPosition = writer.BaseStream.Position;
+                    writer.Write(0); // write 0 to reserve some space for size_of_submeshes in the buffer.
+                    foreach (var mesh in lod.Meshes) {
+                        writer.Write(mesh.ElementSize);
+                        writer.Write(mesh.VertexCount);
+                        writer.Write(mesh.IndexCount);
+                        writer.Write((int)mesh.ElementsType);
+                        writer.Write((int)mesh.PrimitiveTopology);
+
+                        var alignedPositionBuffer = new byte[MathUtil.AlignSizeUp(mesh.Positions.Length, 4)];
+                        Array.Copy(mesh.Positions, alignedPositionBuffer, mesh.Positions.Length);
+                        var alignedElementBuffer = new byte[MathUtil.AlignSizeUp(mesh.Elements.Length, 4)];
+                        Array.Copy(mesh.Elements, alignedElementBuffer, mesh.Elements.Length);
+
+                        writer.Write(alignedPositionBuffer);
+                        writer.Write(alignedElementBuffer);
+                        writer.Write(mesh.Indices);
+                    }
+                    var endOfSubmesh = writer.BaseStream.Position;
+                    // NOTE: subtracting extra 4 bytes because of the previously written 0 to reserve it for size_of_submeshes
+                    var sizeOfSubmeshes = (int)(endOfSubmesh - sizeOfSubmeshesPosition - sizeof(int));
+
+                    writer.BaseStream.Position = sizeOfSubmeshesPosition;
+                    writer.Write(sizeOfSubmeshes); // actual size of data held by submeshes.
+                    writer.BaseStream.Position = endOfSubmesh; // reset back position of BinaryWriter to where it should be.
+
+                }
+            }
+            writer.Flush();
+            data = (writer.BaseStream as MemoryStream)?.ToArray();
+            Debug.Assert(data?.Length > 0);
+
+            // for testing!!! Remove it later!!!
+            using(var fs = new FileStream(@"..\..\EngineTest\model.model", FileMode.Create)) {
+                fs.Write(data, 0, data.Length);
+            }
+            // for testing!!! Remove it later!!!
+
+            return (data != null && data.Length > 0) ? data : Array.Empty<byte>();
+        }
 
         private void LODToBinary(MeshLOD lod, BinaryWriter writer, out byte[]? hash)
         {
             writer.Write(lod.Name);
-            writer.Write(lod.LODTreshold);
+            writer.Write(lod.LODThreshold);
             writer.Write(lod.Meshes.Count);
 
             // we want to calculate a hash for mesh data only, not the names for LODs and other things
@@ -575,6 +664,7 @@ namespace MageEditor.Content
                 writer.Write(mesh.Name);
                 writer.Write(mesh.ElementSize);
                 writer.Write((int)mesh.ElementsType);
+                writer.Write((int)mesh.PrimitiveTopology);
                 writer.Write(mesh.VertexCount);
                 writer.Write(mesh.IndexSize);
                 writer.Write(mesh.IndexCount);
@@ -594,7 +684,7 @@ namespace MageEditor.Content
             // read in order as had been written in LODToBinary()
             var lod = new MeshLOD();
             lod.Name = reader.ReadString();
-            lod.LODTreshold = reader.ReadSingle();
+            lod.LODThreshold = reader.ReadSingle();
             var meshCount = reader.ReadInt32();
 
             for(int i=0; i<meshCount; ++i) {
@@ -602,6 +692,7 @@ namespace MageEditor.Content
                     Name = reader.ReadString(),
                     ElementSize = reader.ReadInt32(),
                     ElementsType = (ElementsType)reader.ReadInt32(),
+                    PrimitiveTopology = (PrimitiveTopology)reader.ReadInt32(),
                     VertexCount = reader.ReadInt32(),
                     IndexSize = reader.ReadInt32(),
                     IndexCount = reader.ReadInt32()

@@ -78,6 +78,7 @@ namespace MageEditor.Content
         /// <param name="file_location"></param>
         /// <returns></returns>
         public abstract IEnumerable<string> Save(string file);
+        public abstract byte[] PackForEngine();
 
         public static AssetInfo? TryGetAssetInfo(string file) =>
             File.Exists(file) && Path.GetExtension(file) == AssetFileExtension ? AssetRegistery.GetAssetInfo(file) ?? GetAssetInfo(file) : null;

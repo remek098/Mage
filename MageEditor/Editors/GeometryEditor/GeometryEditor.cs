@@ -409,7 +409,7 @@ namespace MageEditor.Editors
             var pos = MeshRenderer.OffsetCameraPosition;
             var distance = new Vector3D(pos.X, pos.Y, pos.Z).Length;
             for(int i=MaxLODIndex; i >= 0; --i) {
-                if (lods[i].LODTreshold < distance) {
+                if (lods[i].LODThreshold < distance) {
                     LODIndex = i;
                     break;
                 }

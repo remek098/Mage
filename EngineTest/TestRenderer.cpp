@@ -2,14 +2,18 @@
 #include "..\Platform\Platform.h"
 #include "..\Graphics\Renderer.h"
 #include "..\Graphics\Direct3D12\D3D12Core.h"
+#include "..\Content\ContentToEngine.h"
 #include "TestRenderer.h"
 #include "ShaderCompilation.h"
+
+#include <fstream>
+#include <filesystem>
 
 #if TEST_RENDERER
 using namespace mage;
 
 //////////////////////////////////////////////////////////////////////////////////
-#define ENABLE_TEST_WORKERS 1
+#define ENABLE_TEST_WORKERS 0
 
 constexpr u32 num_threads{ 8 };
 bool          shutdown{ false };
@@ -42,6 +46,8 @@ void join_test_workers() {
 #endif
 }
 // Multithreading test worker spawn code /////////////////////////////////////////
+
+id::id_type model_id{ id::invalid_id };
 
 gfx::render_surface g_surfaces[4];
 time_it timer{};
@@ -134,6 +140,30 @@ LRESULT win_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
     return DefWindowProc(hwnd, msg, wparam, lparam);
 }
 
+/// <summary>
+/// reads file from path, and sets data and size if binary file was opened.
+/// </summary>
+/// <param name="path"></param>
+/// <param name="data"></param>
+/// <param name="size"></param>
+/// <returns></returns>
+bool read_file(std::filesystem::path path, std::unique_ptr<u8[]>& data, u64& size) {
+    if (!std::filesystem::exists(path)) return false;
+
+    size = std::filesystem::file_size(path);
+    assert(size);
+    if (!size) return false;
+    data = std::make_unique<u8[]>(size);
+    std::ifstream file{ path, std::ios::in | std::ios::binary };
+    if (!file || !file.read((char*)data.get(), size)) {
+        file.close();
+        return false;
+    }
+
+    file.close();
+    return true;
+}
+
 void create_render_surface(gfx::render_surface& surface, platform::window_init_info info) {
     surface.window = platform::create_window(&info);
     surface.surface = gfx::create_surface(surface.window);
@@ -167,6 +197,15 @@ bool test_initialize() {
     for (u32 i = 0; i < _countof(g_surfaces); ++i)
         create_render_surface(g_surfaces[i], info[i]);
 
+
+    // load test model
+    std::unique_ptr<u8[]> model;
+    u64 size{ 0 };
+    if (!read_file("..\\..\\enginetest\\model.model", model, size)) return false;
+
+    model_id = content::create_resource(model.get(), content::asset_type::mesh);
+    if (!id::is_valid(model_id)) return false;
+
     init_test_workers(buffer_test_worker);
 
     is_restarting = false;
@@ -175,6 +214,8 @@ bool test_initialize() {
 
 void test_shutdown() {
     join_test_workers();
+
+    if (id::is_valid(model_id)) content::destroy_resource(model_id, content::asset_type::mesh);
 
     for (u32 i = 0; i < _countof(g_surfaces); ++i)
         destroy_render_surface(g_surfaces[i]);

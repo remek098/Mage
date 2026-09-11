@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -31,6 +32,35 @@ namespace MageEditor.Utilities
             if(!value.HasValue || !other.HasValue) return false;
             return Math.Abs(value.Value - other.Value) < Epsilon;
         }
+
+        public static long AlignSizeUp(long size, long alignment)
+        {
+            /*
+            nice and fast way of checking if a single bit is set: value && !(value & (value - 1)):
+            value:      0010 0000
+            value-1:    0001 1111
+            This gives  !(0010 0000 & 0001 1111) => 1111 1111
+            i.e. if any of bits after most significant set bit is set, therefore value & (value -1) would be non-zero
+            */
+            Debug.Assert(alignment > 0, "Alignment must be non-zero."); // non-zero alignment is required.
+            long mask = alignment - 1;
+            Debug.Assert((alignment & mask) == 0, "Alignment should be a power of 2."); // the !(value & (value -1)) part
+
+
+            // add a mask and clean up mask bits.
+            return ((size + mask) & ~mask);
+        }
+
+        // align by rounding down. Will result in a multiple of "alignment" that is less than or equal to 'size'
+        public static long AlignSizeDown(long size, long alignment)
+        {
+            Debug.Assert(alignment > 0, "Alignment must be non-zero."); // non-zero alignment is required.
+            long mask = alignment - 1;
+            Debug.Assert((alignment & mask) == 0, "Alignment should be a power of 2.");
+            // clean up mask bits -> i.e. align to most significant bit's power of 2.
+            return (size & ~mask);
+        }
+
     }
 
     
