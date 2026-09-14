@@ -17,6 +17,7 @@ namespace mage::transform {
 
 
         math::vec4 rotation() const;
+        math::vec3 orientation() const;
         math::vec3 position() const;
         math::vec3 scale() const;
     private:

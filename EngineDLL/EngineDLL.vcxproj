@@ -61,7 +61,7 @@
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>$(SolutionDir)Engine\Common</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Engine; $(SolutionDir)Engine\Common</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

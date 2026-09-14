@@ -67,14 +67,14 @@
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>$(SolutionDir)Engine\Common;C:\Program Files\Autodesk\FBX\FBX SDK\2020.3.9\include;$(ProjectDir)vendor\assimp\include;$(ProjectDir)vendor\assimp\build\include; $(ProjectDir)vendor\assimp\include;</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Engine; $(SolutionDir)Engine\Common;$(ProjectDir)vendor\assimp\include;$(ProjectDir)vendor\assimp\build\include; $(ProjectDir)vendor\assimp\include;</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
       <AdditionalLibraryDirectories>C:\Program Files\Autodesk\FBX\FBX SDK\2020.3.9\lib\x64\debug; $(ProjectDir)vendor\assimp\build\lib\Debug;</AdditionalLibraryDirectories>
-      <AdditionalDependencies>$(CoreLibraryDependencies);%(AdditionalDependencies); libfbxsdk-md.lib; libxml2-md.lib; zlib-md.lib; assimp-vc145-mtd.lib;</AdditionalDependencies>
+      <AdditionalDependencies>$(CoreLibraryDependencies);%(AdditionalDependencies);libxml2-md.lib; zlib-md.lib; assimp-vc145-mtd.lib;</AdditionalDependencies>
       <AdditionalOptions>/ignore:4099 %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <PreBuildEvent>
@@ -104,14 +104,14 @@ if not exist "$(ProjectDir)vendor\assimp\build\lib\%CMAKE_CONFIG%\%LIB_NAME%" (
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>$(SolutionDir)Engine\Common;C:\Program Files\Autodesk\FBX\FBX SDK\2020.3.9\include;$(ProjectDir)vendor\assimp\include;$(ProjectDir)vendor\assimp\build\include;</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Engine; $(SolutionDir)Engine\Common;$(ProjectDir)vendor\assimp\include;$(ProjectDir)vendor\assimp\build\include;</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
       <AdditionalLibraryDirectories>C:\Program Files\Autodesk\FBX\FBX SDK\2020.3.9\lib\x64\release;$(ProjectDir)vendor\assimp\build\lib\Release;</AdditionalLibraryDirectories>
-      <AdditionalDependencies>$(CoreLibraryDependencies);%(AdditionalDependencies); libfbxsdk-md.lib; libxml2-md.lib; zlib-md.lib;assimp-vc145-mt.lib;</AdditionalDependencies>
+      <AdditionalDependencies>$(CoreLibraryDependencies);%(AdditionalDependencies);libxml2-md.lib; zlib-md.lib;assimp-vc145-mt.lib;</AdditionalDependencies>
       <AdditionalOptions>/ignore:4099 %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <PreBuildEvent>

@@ -1,8 +1,10 @@
-#include "..\Platform\PlatformTypes.h"
-#include "..\Platform\Platform.h"
-#include "..\Graphics\Renderer.h"
-#include "..\Graphics\Direct3D12\D3D12Core.h"
-#include "..\Content\ContentToEngine.h"
+#include "Platform/PlatformTypes.h"
+#include "Platform/Platform.h"
+#include "Graphics/Renderer.h"
+#include "Graphics/Direct3D12/D3D12Core.h"
+#include "Content/ContentToEngine.h"
+#include "Components/Entity.h"
+#include "Components/Transform.h"
 #include "TestRenderer.h"
 #include "ShaderCompilation.h"
 
@@ -46,8 +48,9 @@ void join_test_workers() {
 #endif
 }
 // Multithreading test worker spawn code /////////////////////////////////////////
-
+game_entity::entity entity{};
 id::id_type model_id{ id::invalid_id };
+gfx::camera camera{};
 
 gfx::render_surface g_surfaces[4];
 time_it timer{};
@@ -164,6 +167,23 @@ bool read_file(std::filesystem::path path, std::unique_ptr<u8[]>& data, u64& siz
     return true;
 }
 
+game_entity::entity
+create_one_game_entity() {
+    using namespace DirectX;
+    transform::init_info transform_info{};
+    math::vec3a rot{ 0, 3.14f, 0 };
+    XMVECTOR quat{ XMQuaternionRotationRollPitchYawFromVector(XMLoadFloat3A(&rot)) };
+    math::vec4a rot_quat;
+    XMStoreFloat4A(&rot_quat, quat);
+    memcpy(&transform_info.rotation[0], &rot_quat.x, sizeof(transform_info.rotation));
+
+    game_entity::entity_info entity_info{};
+    entity_info.tranform = &transform_info;
+    game_entity::entity ntt{ game_entity::create(entity_info) };
+    assert(ntt.is_valid());
+    return ntt;
+}
+
 void create_render_surface(gfx::render_surface& surface, platform::window_init_info info) {
     surface.window = platform::create_window(&info);
     surface.surface = gfx::create_surface(surface.window);
@@ -208,11 +228,18 @@ bool test_initialize() {
 
     init_test_workers(buffer_test_worker);
 
+    entity = create_one_game_entity();
+    camera = gfx::create_camera(gfx::perspective_camera_init_info(entity.get_id()));
+    assert(camera.is_valid());
+
     is_restarting = false;
     return true;
 }
 
 void test_shutdown() {
+    if(camera.is_valid()) gfx::remove_camera(camera.get_id());
+    if (entity.is_valid()) game_entity::remove(entity.get_id());
+
     join_test_workers();
 
     if (id::is_valid(model_id)) content::destroy_resource(model_id, content::asset_type::mesh);

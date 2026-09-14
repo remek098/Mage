@@ -1,5 +1,5 @@
 #include "Geometry.h"
-#include "../Engine/Utilities/IOStreamUtils.h"
+#include "Utilities/IOStreamUtils.h"
 
 namespace mage::tools {
 namespace {

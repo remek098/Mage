@@ -13,7 +13,8 @@ namespace mage::tools {
 namespace {
     std::mutex fbx_mutex{};
 } // anonymous namespace
-
+    // to use this code you would need to download fbxsdk and use path like this: C:\Program Files\Autodesk\FBX\FBX SDK\2020.3.9\include;
+    // in linker of ContentTools project.
     //bool fbx_context::initialize_fbx() {
     //    // https://help.autodesk.com/view/FBX/2020/ENU/?guid=FBX_Developer_Help_getting_started_your_first_fbx_sdk_program_html
     //    assert(!is_valid());

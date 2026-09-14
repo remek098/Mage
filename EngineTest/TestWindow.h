@@ -1,7 +1,7 @@
 #pragma once
 #include "Test.h"
-#include "..\Platform\PlatformTypes.h"
-#include "..\Platform\Platform.h"
+#include "Platform/PlatformTypes.h"
+#include "Platform/Platform.h"
 
 using namespace mage;
 
