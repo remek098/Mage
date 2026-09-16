@@ -48,9 +48,13 @@ void join_test_workers() {
 #endif
 }
 // Multithreading test worker spawn code /////////////////////////////////////////
-game_entity::entity entity{};
+struct {
+    game_entity::entity entity{};
+    gfx::camera camera{};
+} camera;
+
+id::id_type item_id{ id::invalid_id };
 id::id_type model_id{ id::invalid_id };
-gfx::camera camera{};
 
 gfx::render_surface g_surfaces[4];
 time_it timer{};
@@ -62,6 +66,9 @@ bool resized = false;
 void destroy_render_surface(gfx::render_surface& surface);
 bool test_initialize();
 void test_shutdown();
+
+id::id_type create_render_item(id::id_type entity_id);
+void destroy_render_item(id::id_type item_id);
 
 LRESULT win_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
     bool toggle_fullscreen = false;
@@ -228,17 +235,21 @@ bool test_initialize() {
 
     init_test_workers(buffer_test_worker);
 
-    entity = create_one_game_entity();
-    camera = gfx::create_camera(gfx::perspective_camera_init_info(entity.get_id()));
-    assert(camera.is_valid());
+    camera.entity = create_one_game_entity();
+    camera.camera = gfx::create_camera(gfx::perspective_camera_init_info(camera.entity.get_id()));
+    assert(camera.camera.is_valid());
+
+    item_id = create_render_item(create_one_game_entity().get_id());
 
     is_restarting = false;
     return true;
 }
 
 void test_shutdown() {
-    if(camera.is_valid()) gfx::remove_camera(camera.get_id());
-    if (entity.is_valid()) game_entity::remove(entity.get_id());
+    destroy_render_item(item_id);
+
+    if(camera.camera.is_valid()) gfx::remove_camera(camera.camera.get_id());
+    if (camera.entity.is_valid()) game_entity::remove(camera.entity.get_id());
 
     join_test_workers();
 

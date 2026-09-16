@@ -95,6 +95,18 @@ struct ortographic_camera_init_info : public camera_init_info {
     }
 };
 
+struct primitive_topology {
+    enum type : u32 {
+        point_list = 1,
+        line_list,
+        line_strip,
+        triangle_list,
+        triangle_strip,
+
+        count
+    };
+};
+
 enum class gfx_platform : u32 {
     d3d12 = 0,
 };

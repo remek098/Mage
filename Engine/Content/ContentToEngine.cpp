@@ -64,6 +64,9 @@ constexpr uintptr_t single_mesh_marker{ (uintptr_t)0x01 };
 utl::free_list<u8*> geometry_hierarchies;
 std::mutex			geometry_mutex;
 
+utl::free_list<std::unique_ptr<u8[]>>	shaders;
+std::mutex								shaders_mutex;
+
 // NOTE: expects the same data as create_geometry_resource()
 u32 
 get_geometry_hierarchy_buffer_size(const void* const data) {
@@ -179,7 +182,7 @@ is_single_mesh(const void* const data) {
 	return submesh_count == 1;
 }
 
-id::id_type
+constexpr id::id_type
 gpu_id_from_fake_pointer(u8* const ptr) {
 	assert((uintptr_t)ptr & single_mesh_marker);
 	static_assert(sizeof(uintptr_t) > sizeof(id::id_type));
@@ -290,5 +293,30 @@ destroy_resource(id::id_type id, asset_type::type type) {
 	}
 }
 
+id::id_type 
+add_shader(const u8* data) {
+	const compiled_shader_ptr shader_ptr{ (const compiled_shader_ptr)data };
+	// size = sizeof(u64) + compiled_shader::hash_length + shader_ptr->byte_code_size();
+	const u64 size{ shader_ptr->calc_size() };
+	std::unique_ptr<u8[]> shader{ std::make_unique<u8[]>(size) };
+	memcpy(shader.get(), data, size);
+
+	std::lock_guard lock{ shaders_mutex };
+	return shaders.add(std::move(shader));
+}
+
+void 
+remove_shader(id::id_type id) {
+	std::lock_guard lock{ shaders_mutex };
+	assert(id::is_valid(id));
+	shaders.remove(id);
+}
+
+compiled_shader_ptr 
+get_shader(id::id_type id) {
+	std::lock_guard lock{ shaders_mutex };
+	assert(id::is_valid(id));
+	return (const compiled_shader_ptr)(shaders[id].get());
+}
 
 } // namespace mage::content

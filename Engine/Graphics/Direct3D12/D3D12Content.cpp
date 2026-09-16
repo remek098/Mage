@@ -2,7 +2,7 @@
 #include "D3D12Helpers.h"
 #include "D3D12Core.h"
 #include "Utilities/IOStreamUtils.h"
-#include "Content/ContentToEngine.h"
+#include "Content/ContentLoader.h"
 
 namespace mage::gfx::d3d12::content {
 
@@ -21,8 +21,7 @@ utl::free_list<submesh_view>            submesh_views{};
 std::mutex                              submesh_mutex{};
 
 
-D3D_PRIMITIVE_TOPOLOGY get_d3d_primitive_topology(mage::content::primitive_topology::type type) {
-    using namespace mage::content;
+D3D_PRIMITIVE_TOPOLOGY get_d3d_primitive_topology(primitive_topology::type type) {
     assert(type < primitive_topology::count);
 
     switch (type) {
@@ -99,7 +98,7 @@ id::id_type add(const u8*& data) {
     view.index_buffer_view.Format = (index_size == sizeof(u16)) ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT;
     view.index_buffer_view.SizeInBytes = index_buffer_size;
 
-    view.primitive_topology = get_d3d_primitive_topology((mage::content::primitive_topology::type)primitive_topology);
+    view.primitive_topology = get_d3d_primitive_topology((primitive_topology::type)primitive_topology);
     view.element_type = elements_type;
 
     std::lock_guard lock{ submesh_mutex }; // locking data of utl::vectors before modifying them.
