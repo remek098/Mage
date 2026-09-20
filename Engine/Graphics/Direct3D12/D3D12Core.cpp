@@ -4,6 +4,7 @@
 #include "D3D12GPass.h"
 #include "D3D12PostProcess.h"
 #include "D3D12Upload.h"
+#include "D3D12Content.h"
 
 using namespace Microsoft::WRL;
 
@@ -181,7 +182,8 @@ namespace mage::gfx::d3d12::core {
         descriptor_heap                     rtv_desc_heap{ D3D12_DESCRIPTOR_HEAP_TYPE_RTV };
         descriptor_heap                     dsv_desc_heap{ D3D12_DESCRIPTOR_HEAP_TYPE_DSV };
         descriptor_heap                     srv_desc_heap{ D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV }; // that one is shader visible
-        descriptor_heap                     uav_desc_heap{ D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV }; // that will not be shader visible
+        descriptor_heap                     uav_desc_heap{ D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV }; // that will not be shader vi
+        descriptor_heap                     sampler_desc_heap{ D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER }; // that one is shader visiblesible
 
 
         utl::vector<IUnknown*>              deferred_releases[frame_buffer_count]; // resources that have to be released for each frame buffer.
@@ -328,6 +330,8 @@ namespace mage::gfx::d3d12::core {
         result &= dsv_desc_heap.init(512, false);
         result &= srv_desc_heap.init(4096, true); // ofc in game number of textures and other things would be much bigger than this.
         result &= uav_desc_heap.init(512, false);
+        result &= srv_desc_heap.init(4096, true);
+        result &= sampler_desc_heap.init(64, true); // can be even D3D12_MAX_SHADER_VISIBLE_SAMPLER_HEAP_SIZE
         if (!result) return failed_init();
 
         // NOTE: using placement new, because we construct in place and we don't want to ever be able to have it copied or moved
@@ -342,7 +346,8 @@ namespace mage::gfx::d3d12::core {
         if (!(shaders::initialize() && 
               gpass::initialize() && 
               fx::initialize() && 
-              upload::initialize())) {
+              upload::initialize() &&
+              content::initialize())) {
             return failed_init();
         }
 
@@ -351,6 +356,7 @@ namespace mage::gfx::d3d12::core {
         NAME_D3D12_OBJECT(dsv_desc_heap.heap(), L"DSV Descriptor Heap");
         NAME_D3D12_OBJECT(srv_desc_heap.heap(), L"SRV Descriptor Heap");
         NAME_D3D12_OBJECT(uav_desc_heap.heap(), L"UAV Descriptor Heap");
+        NAME_D3D12_OBJECT(sampler_desc_heap.heap(), L"Sampler Descriptor Heap");
 
         return true;
     }
@@ -365,6 +371,7 @@ namespace mage::gfx::d3d12::core {
         }
 
         // shutdown modules.
+        content::shutdown();
         upload::shutdown();
         fx::shutdown();
         gpass::shutdown();
@@ -378,11 +385,13 @@ namespace mage::gfx::d3d12::core {
         dsv_desc_heap.process_deferred_free(0);
         srv_desc_heap.process_deferred_free(0);
         uav_desc_heap.process_deferred_free(0);
+        sampler_desc_heap.process_deferred_free(0);
 
         rtv_desc_heap.release();
         dsv_desc_heap.release();
         srv_desc_heap.release();
         uav_desc_heap.release();
+        sampler_desc_heap.release();
 
         // NOTE: some types only use deferred release for their resources during shutdown/reset/clear.
         //       To finally release these resources, we call process_deferred_releases once more.
@@ -471,8 +480,11 @@ namespace mage::gfx::d3d12::core {
         
         
         // record commands
-        ID3D12DescriptorHeap* const heaps[]{ srv_desc_heap.heap() };
-        cmd_list->SetDescriptorHeaps(1, &heaps[0]);
+        ID3D12DescriptorHeap* const heaps[]{ 
+            srv_desc_heap.heap(),
+            sampler_desc_heap.heap()
+        };
+        cmd_list->SetDescriptorHeaps(_countof(heaps), &heaps[0]);
 
         cmd_list->RSSetViewports(1, &surface.viewport());
         cmd_list->RSSetScissorRects(1, &surface.scissor_rect());

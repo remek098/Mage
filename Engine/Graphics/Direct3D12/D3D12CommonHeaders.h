@@ -51,7 +51,7 @@ if(FAILED(x)) {                                 \
 #define NAME_D3D12_OBJECT_INDEXED(obj, index, name)                 \
 {                                                                   \
 wchar_t full_name[128];                                             \
-if(swprintf_s(full_name, L"%s[%u]", name, index) > 0) {             \
+if(swprintf_s(full_name, L"%s[%llu]", name, (u64)index) > 0) {      \
     obj->SetName(full_name);                                        \
     OutputDebugString(L"::D3D12 Object Created: ");                 \
     OutputDebugString(full_name);                                   \

@@ -95,6 +95,52 @@ struct ortographic_camera_init_info : public camera_init_info {
     }
 };
 
+struct shader_flags {
+    enum flags : u32 {
+        none            = 0x00,
+        vertex          = 0x01,
+        hull            = 0x02,
+        domain          = 0x04,
+        geometry        = 0x08,
+        pixel           = 0x10,
+        compute         = 0x20,
+        amplification   = 0x40,
+        mesh            = 0x80,
+    };
+};
+
+struct shader_type {
+    enum type : u32 {
+        vertex = 0,
+        hull,
+        domain,
+        geometry,
+        pixel,
+        compute,
+        amplification,
+        mesh,
+
+        count
+    };
+};
+
+struct material_type {
+    enum type : u32 {
+        opaque,
+        // transparent, unlit, clear_coat, cloth, skin, foliage, hair, etc.
+        count
+    };
+};
+
+struct material_init_info {
+    material_type::type         type;
+    u32                         texture_count; // NOTE: textures are optional, so texture_count can be 0.
+    id::id_type                 shader_ids[shader_type::count]{ id::invalid_id, id::invalid_id, id::invalid_id,
+                                                                id::invalid_id, id::invalid_id, id::invalid_id, 
+                                                                id::invalid_id, id::invalid_id};
+    id::id_type*                texture_ids; // might be a nullptr, because textures are optional.
+};
+
 struct primitive_topology {
     enum type : u32 {
         point_list = 1,
@@ -130,4 +176,7 @@ void  remove_camera(camera_id id);
 
 id::id_type add_submesh(const u8*& data);
 void remove_submesh(id::id_type id);
+
+id::id_type add_material(material_init_info info);
+void remove_material(id::id_type id);
 } // namespace mage::gfx

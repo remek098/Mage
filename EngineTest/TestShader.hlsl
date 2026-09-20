@@ -31,6 +31,10 @@ struct VertexOut
     float2  UV                   : TEXTURE;
 };
 
+ConstantBuffer<GlobalShaderData>    PerFrameBuffer  : register(b0, space0);
+ConstantBuffer<PerObjectData>       PerObjectBuffer : register(b1, space0);
+StructuredBuffer<float3>            VertexPositions : register(t0, space0);
+
 struct PixelOut
 {
     float4 Color : SV_Target0;

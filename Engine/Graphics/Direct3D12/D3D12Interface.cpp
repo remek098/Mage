@@ -24,6 +24,8 @@ namespace mage::gfx::d3d12 {
 
         pi.resources.add_submesh = content::submesh::add;
         pi.resources.remove_submesh = content::submesh::remove;
+        pi.resources.add_material = content::material::add;
+        pi.resources.remove_material = content::material::remove;
 
         pi.platform = gfx_platform::d3d12;
     }

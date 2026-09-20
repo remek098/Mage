@@ -173,7 +173,7 @@ namespace mage::gfx::d3d12::d3dx {
             Constants.RegisterSpace = register_space;
         }
 
-        constexpr void as_cvb(D3D12_SHADER_VISIBILITY visibility,
+        constexpr void as_cbv(D3D12_SHADER_VISIBILITY visibility,
                               u32 shader_register, u32 register_space = 0,
                               D3D12_ROOT_DESCRIPTOR_FLAGS flags = D3D12_ROOT_DESCRIPTOR_FLAG_NONE) {
             as_descriptor(D3D12_ROOT_PARAMETER_TYPE_CBV, visibility, shader_register, register_space, flags);
@@ -219,15 +219,22 @@ namespace mage::gfx::d3d12::d3dx {
     /// Static samplers = 0 DWORDs (compiled into shader)
     /// </summary>
     struct d3d12_root_signature_desc : public D3D12_ROOT_SIGNATURE_DESC1 {
+        constexpr static D3D12_ROOT_SIGNATURE_FLAGS default_flags{
+            D3D12_ROOT_SIGNATURE_FLAG_DENY_VERTEX_SHADER_ROOT_ACCESS |
+            D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+            D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+            D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS |
+            D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS |
+            D3D12_ROOT_SIGNATURE_FLAG_DENY_AMPLIFICATION_SHADER_ROOT_ACCESS |
+            D3D12_ROOT_SIGNATURE_FLAG_DENY_MESH_SHADER_ROOT_ACCESS |
+            D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED |
+            D3D12_ROOT_SIGNATURE_FLAG_SAMPLER_HEAP_DIRECTLY_INDEXED
+        };
+
         constexpr explicit d3d12_root_signature_desc(const d3d12_root_parameter* parameters, u32 parameter_count,
-                                                     const D3D12_STATIC_SAMPLER_DESC* static_samplers = nullptr, u32 sampler_count = 0,
-                                                     D3D12_ROOT_SIGNATURE_FLAGS  flags =
-                                                     D3D12_ROOT_SIGNATURE_FLAG_DENY_VERTEX_SHADER_ROOT_ACCESS |
-                                                     D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
-                                                     D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
-                                                     D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS |
-                                                     D3D12_ROOT_SIGNATURE_FLAG_DENY_AMPLIFICATION_SHADER_ROOT_ACCESS |
-                                                     D3D12_ROOT_SIGNATURE_FLAG_DENY_MESH_SHADER_ROOT_ACCESS) 
+                                                     D3D12_ROOT_SIGNATURE_FLAGS  flags = default_flags,
+                                                     const D3D12_STATIC_SAMPLER_DESC* static_samplers = nullptr, u32 sampler_count = 0
+        )
             : D3D12_ROOT_SIGNATURE_DESC1{parameter_count, parameters, sampler_count, static_samplers, flags}
         {}
 

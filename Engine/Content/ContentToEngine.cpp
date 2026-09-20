@@ -257,6 +257,28 @@ destroy_geometry_resource(id::id_type id) {
 	geometry_hierarchies.remove(id);
 }
 
+
+/*
+NOTE: expects data to contain:
+struct {
+	material_type::type		type,
+	u32						texture_count,
+	id::id_type				shader_ids[shader_type::count],
+	id::id_type*			texture_ids;
+} material_init_info;
+
+*/
+id::id_type
+create_material_resource(const void* const data) {
+	assert(data);
+	return gfx::add_material(*(const gfx::material_init_info* const)data);
+}
+
+void
+destroy_material_resource(id::id_type id) {
+	gfx::remove_material(id);
+}
+
 } // anonymous namespace
 
 id::id_type 
@@ -267,7 +289,7 @@ create_resource(const void* const data, asset_type::type type) {
 	switch (type) {
 		case mage::content::asset_type::animation: break;
 		case mage::content::asset_type::audio: break;
-		case mage::content::asset_type::material: break;
+		case mage::content::asset_type::material: id = create_material_resource(data); break;
 		case mage::content::asset_type::mesh: id = create_geometry_resource(data); break;
 		case mage::content::asset_type::skeleton: break;
 		case mage::content::asset_type::texture: break;
@@ -283,7 +305,7 @@ destroy_resource(id::id_type id, asset_type::type type) {
 	switch (type) {
 		case mage::content::asset_type::animation: break;
 		case mage::content::asset_type::audio: break;
-		case mage::content::asset_type::material: break;
+		case mage::content::asset_type::material: destroy_material_resource(id); break;
 		case mage::content::asset_type::mesh: destroy_geometry_resource(id); break;
 		case mage::content::asset_type::skeleton: break;
 		case mage::content::asset_type::texture: break;
