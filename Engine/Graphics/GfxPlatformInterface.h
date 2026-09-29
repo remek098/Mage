@@ -37,6 +37,9 @@ namespace mage::gfx {
 
             id::id_type (*add_material)(material_init_info);
             void (*remove_material)(id::id_type);
+
+            id::id_type (*add_render_item)(id::id_type, id::id_type, u32, const id::id_type* const);
+            void (*remove_render_item)(id::id_type);
         } resources;
 
         gfx_platform platform = (gfx_platform)-1;

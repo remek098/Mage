@@ -12,8 +12,6 @@ struct gpass_root_param_indices {
 };
 
 
-constexpr DXGI_FORMAT           main_buffer_format{ DXGI_FORMAT_R16G16B16A16_FLOAT }; // HDR format
-constexpr DXGI_FORMAT           depth_buffer_format{ DXGI_FORMAT_D32_FLOAT }; 
 
 constexpr math::u32vec2         initial_dimensions{ 100, 100 };
 

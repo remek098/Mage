@@ -7,6 +7,9 @@ namespace mage::gfx::d3d12 {
 
 namespace mage::gfx::d3d12::gpass {
 
+constexpr DXGI_FORMAT           main_buffer_format{ DXGI_FORMAT_R16G16B16A16_FLOAT }; // HDR format
+constexpr DXGI_FORMAT           depth_buffer_format{ DXGI_FORMAT_D32_FLOAT };
+
 struct opaque_root_parameter {
     enum parameter : u32 {
         per_frame_data,
