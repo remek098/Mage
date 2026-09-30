@@ -215,6 +215,16 @@ constexpr struct {
     };
 } blend_state;
 
+constexpr u64
+align_size_for_constant_buffer(u64 size) {
+    return math::align_size_up<D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT>(size);
+}
+
+constexpr u64
+align_size_for_texture(u64 size) {
+    return math::align_size_up<D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT>(size);
+}
+
     class d3d12_resource_barrier {
     public:
         constexpr static u32 max_resource_barriers = 32;
