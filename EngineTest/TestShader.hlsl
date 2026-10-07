@@ -1,53 +1,64 @@
-struct GlobalShaderData
-{
-    float4x4 View;
-    float4x4 Projection;
-    float4x4 InvProjection;
-    float4x4 ViewProjection;
-    float4x4 InvViewProjection;
-             
-    float3   CameraPosition;
-    float    ViewWidth;
-             
-    float3   CameraDirection;
-    float    ViewHeight;
-             
-    float    DeltaTime;
-};
-
-struct PerObjectData
-{
-    float4x4 World;
-    float4x4 InvWorld;
-    float4x4 WorldViewProjection;
-};
+#include "Common.hlsli"
 
 struct VertexOut
 {
     float4  HomogenousPosition   : SV_Position;
-    float   WorldPosition        : POSITION;
-    float   WorldNormal          : NORMAL;
-    float   WorldTangent         : TANGENT;
+    float3  WorldPosition        : POSITION;
+    float3  WorldNormal          : NORMAL;
+    float3  WorldTangent         : TANGENT;
     float2  UV                   : TEXTURE;
 };
 
-ConstantBuffer<GlobalShaderData>    PerFrameBuffer  : register(b0, space0);
-ConstantBuffer<PerObjectData>       PerObjectBuffer : register(b1, space0);
-StructuredBuffer<float3>            VertexPositions : register(t0, space0);
+struct ElementStaticNormalTexture
+{
+    uint        ColorTSign;
+    uint16_t2   Normal;
+    uint16_t2   Tangent;
+    float2      UV;
+};
 
 struct PixelOut
 {
     float4 Color : SV_Target0;
 };
 
+ConstantBuffer<GlobalShaderData>                GlobalData      : register(b0, space0);
+ConstantBuffer<PerObjectData>                   PerObjectBuffer : register(b1, space0);
+StructuredBuffer<float3>                        VertexPositions : register(t0, space0);
+StructuredBuffer<ElementStaticNormalTexture>    Elements        : register(t1, space0);
+
+const static float InvIntervals = 2.f / ((1 << 16) - 1);
+
 VertexOut TestShaderVS(in uint VertexIdx : SV_VertexID)
 {
+    // NOTE: when transforming position w = 1, where as for vectors w = 0. 
+    //       This is done to ignore translations for vectors, since they only have direction.
     VertexOut vsOut;
-    vsOut.HomogenousPosition = 0.f;
-    vsOut.WorldPosition      = 0.f;
-    vsOut.WorldNormal        = 0.f;
-    vsOut.WorldTangent       = 0.f;
-    vsOut.UV                 = 0.f;
+    
+    // if ELEMENT_TYPE == 3 (normal and texture bits set to 1)
+    float4 position = float4(VertexPositions[VertexIdx], 1.f); // we get VertexIdx from render() function
+    float4 worldPosition = mul(PerObjectBuffer.World, position);
+    
+    uint signs = 0;
+    uint16_t2 packedNormal = 0;
+    ElementStaticNormalTexture element = Elements[VertexIdx];
+    signs = (element.ColorTSign >> 24) & 0xff;
+    packedNormal = element.Normal;
+    
+    float nSign = float(signs & 0x02) - 1;
+
+    // normals are packed using math::pack_unit_float<16>(f32 f) function, so similar to the math::unpack_to_unit_float<16>(u32 i)
+    float3 normal;
+    normal.x = packedNormal.x * InvIntervals - 1.f;
+    normal.y = packedNormal.y * InvIntervals - 1.f;
+    normal.z = sqrt(saturate(1.f - dot(normal.xy, normal.xy))) * nSign;
+    
+    vsOut.HomogenousPosition = mul(PerObjectBuffer.WorldViewProjection, position); // alternatively you can multiply worldPosition by ViewProjection 
+                                                                                   // from GlobalShaderData
+    vsOut.WorldPosition = worldPosition.xyz;
+    vsOut.WorldNormal = mul(float4(normal, 0.f), PerObjectBuffer.InvWorld).xyz;
+    vsOut.WorldTangent = 0.f;
+    vsOut.UV = 0.f;
     
     return vsOut;
 }
@@ -56,7 +67,7 @@ VertexOut TestShaderVS(in uint VertexIdx : SV_VertexID)
 PixelOut TestShaderPS(in VertexOut psIn)
 {
     PixelOut psOut;
-    psOut.Color = 0.f;
+    psOut.Color = float4(psIn.WorldNormal, 1.f);
     
     return psOut;
 }

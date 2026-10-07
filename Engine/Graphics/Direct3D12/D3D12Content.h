@@ -50,7 +50,7 @@ struct items_cache {
     id::id_type* const          entity_ids;
     id::id_type* const          submesh_gpu_ids;
     id::id_type* const          material_ids;
-    ID3D12PipelineState** const psos;
+    ID3D12PipelineState** const gpass_psos;
     ID3D12PipelineState** const depth_psos;
 };
 

@@ -232,7 +232,7 @@ create_root_signature(material_type::type type, shader_flags::flags flags) {
         {
             using params = gpass::opaque_root_parameter;
             d3dx::d3d12_root_parameter parameters[params::count]{};
-            parameters[params::per_frame_data].as_cbv(D3D12_SHADER_VISIBILITY_ALL, 0); // cbv 0
+            parameters[params::global_shader_data].as_cbv(D3D12_SHADER_VISIBILITY_ALL, 0); // cbv 0
 
             D3D12_SHADER_VISIBILITY buffer_visibility{};
             D3D12_SHADER_VISIBILITY data_visibility{};
@@ -660,7 +660,7 @@ get_d3d12_render_item_ids(const frame_info& info, utl::vector<id::id_type>& d3d1
 void 
 get_items(const id::id_type* const d3d12_render_item_ids, u32 id_count, const items_cache& cache) {
     assert(d3d12_render_item_ids && id_count);
-    assert(cache.entity_ids && cache.submesh_gpu_ids && cache.material_ids && cache.psos && cache.depth_psos);
+    assert(cache.entity_ids && cache.submesh_gpu_ids && cache.material_ids && cache.gpass_psos && cache.depth_psos);
 
     std::lock_guard lock{ render_item_mutex };
     for (u32 i{ 0 }; i < id_count; ++i) {
@@ -668,7 +668,7 @@ get_items(const id::id_type* const d3d12_render_item_ids, u32 id_count, const it
         cache.entity_ids[i] = item.entity_id;
         cache.submesh_gpu_ids[i] = item.submesh_gpu_id;
         cache.material_ids[i] = item.material_id;
-        cache.psos[i] = pipeline_states[item.pso_id];
+        cache.gpass_psos[i] = pipeline_states[item.pso_id];
         cache.depth_psos[i] = pipeline_states[item.depth_pso_id];
     }
 }

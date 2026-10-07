@@ -5,6 +5,8 @@
 #include "D3D12PostProcess.h"
 #include "D3D12Upload.h"
 #include "D3D12Content.h"
+#include "D3D12Camera.h"
+#include "Shaders/ShaderTypes.h"
 
 using namespace Microsoft::WRL;
 
@@ -266,6 +268,44 @@ void __declspec(noinline) process_deferred_releases(u32 frame_index) {
     }
 
 }
+
+d3d12_frame_info
+get_d3d12_frame_info(const frame_info& info, constant_buffer& cbuffer, 
+                     const d3d12_surface& surface, u32 frame_index, f32 delta_time) {
+    camera::d3d12_camera& camera{ camera::get(info.camera_id) };
+    camera.update(); // computes view matrix and possibly projection matrix
+    hlsl::GlobalShaderData data{};
+
+    using namespace DirectX;
+    XMStoreFloat4x4A(&data.View, camera.view());
+    XMStoreFloat4x4A(&data.Projection, camera.projection());
+    XMStoreFloat4x4A(&data.InvProjection, camera.inverse_projection());
+    XMStoreFloat4x4A(&data.ViewProjection, camera.view_projection());
+    XMStoreFloat4x4A(&data.InvViewProjection, camera.inverse_view_projection());
+    XMStoreFloat3(&data.CameraPosition, camera.position());
+    XMStoreFloat3(&data.CameraDirection, camera.direction());
+    data.ViewWidth =  static_cast<f32>(surface.width());
+    data.ViewHeight = static_cast<f32>(surface.height());
+    data.DeltaTime = delta_time;
+
+    // allocate as much memory in cbuffer as we need for our global shader data.
+    // NOTE: be careful to not read from this buffer. Reads are really really slow.
+    hlsl::GlobalShaderData* const shader_data{ cbuffer.allocate<hlsl::GlobalShaderData>() };
+    // TODO: handle the case where cbuffer is full
+    memcpy(shader_data, &data, sizeof(hlsl::GlobalShaderData));
+
+    d3d12_frame_info d3d12_info{
+        &info,
+        &camera,
+        cbuffer.gpu_address(shader_data),
+        static_cast<u32>(data.ViewWidth),
+        static_cast<u32>(data.ViewHeight),
+        frame_index,
+        delta_time
+    };
+    return d3d12_info;
+}
+
 } // anonymous namespace
 
 namespace detail {
@@ -472,7 +512,7 @@ u32 surface_height(surface_id id) {
 }
 
 
-void render_surface(surface_id id) {
+void render_surface(surface_id id, frame_info info) {
     // wait for the GPU to finish with the command allcator and reset the allocator once the GPU is done with it.
     // This frees the memory that was used to store commands.
     gfx_command.begin_frame();
@@ -492,8 +532,10 @@ void render_surface(surface_id id) {
     ID3D12Resource* const current_back_buffer = surface.backbuffer();
 
 
-    d3d12_frame_info frame_info{ surface.width(), surface.height() };
-    gpass::set_size({ frame_info.surface_width, frame_info.surface_height });
+    const d3d12_frame_info d3d12_info{
+        get_d3d12_frame_info(info, cbuffer, surface, frame_index, 16.7f)
+    };
+    gpass::set_size({ d3d12_info.surface_width, d3d12_info.surface_height });
 
     d3dx::d3d12_resource_barrier& barriers = resource_barriers;
         
@@ -512,13 +554,13 @@ void render_surface(surface_id id) {
     gpass::add_transitions_for_depth_prepass(barriers);
     barriers.apply(cmd_list);
     gpass::set_render_targets_for_depth_prepass(cmd_list);
-    gpass::depth_prepass(cmd_list, frame_info);
+    gpass::depth_prepass(cmd_list, d3d12_info);
 
     // geometry and lighting pass
     gpass::add_transitions_for_gpass(barriers);
     barriers.apply(cmd_list);
     gpass::set_render_targets_for_gpass(cmd_list);
-    gpass::render(cmd_list, frame_info);
+    gpass::render(cmd_list, d3d12_info);
 
     d3dx::transition_resource(cmd_list, current_back_buffer,
                                 D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -527,7 +569,7 @@ void render_surface(surface_id id) {
     barriers.apply(cmd_list);
 
     // will write to the current backbuffer, so backbuffer is a render target.
-    fx::post_process(cmd_list, surface.rtv());
+    fx::post_process(cmd_list, d3d12_info, surface.rtv());
 
     // after post process
     d3dx::transition_resource(cmd_list, current_back_buffer,

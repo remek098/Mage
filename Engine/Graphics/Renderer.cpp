@@ -64,9 +64,9 @@ u32 surface::height() const {
     assert(id::is_valid(_id));
     return gfx_interface.surface.height(_id);
 }
-void surface::render() const {
+void surface::render(frame_info info) const {
     assert(id::is_valid(_id));
-    gfx_interface.surface.render(_id);
+    gfx_interface.surface.render(_id, info);
 }
 
 camera 

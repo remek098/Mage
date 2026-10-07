@@ -24,6 +24,8 @@ public:
     [[nodiscard]] DirectX::XMMATRIX view_projection() const { return _view_projection; }
     [[nodiscard]] DirectX::XMMATRIX inverse_view_projection() const { return _inverse_view_projection; }
      
+    [[nodiscard]] DirectX::XMVECTOR position() const { return _position; }
+    [[nodiscard]] DirectX::XMVECTOR direction() const { return _direction; }
     [[nodiscard]] DirectX::XMVECTOR up() const { return _up; }
     [[nodiscard]] f32 near_z() const { return _near_z; }
     [[nodiscard]] f32 far_z() const { return _far_z; }
@@ -42,6 +44,8 @@ private:
     DirectX::XMMATRIX   _inverse_view_projection;
 
     DirectX::XMVECTOR   _up;
+    DirectX::XMVECTOR   _position{};
+    DirectX::XMVECTOR   _direction{};
     f32                 _near_z;
     f32                 _far_z;
     union {

@@ -26,7 +26,7 @@ public:
     void resize(u32 width, u32 height) const;
     u32 width() const;
     u32 height() const;
-    void render() const;
+    void render(frame_info info) const;
 
 private:
     // can have multiple windows to e.g. have multiple windows in editor to e.g. have model viewer, main renderer view that shows game scene
