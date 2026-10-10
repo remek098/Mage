@@ -75,6 +75,7 @@ create_render_item(id::id_type entity_id) {
     // add a render item using the model and it's materials.
     create_material();
     id::id_type materials[]{ mat_id, mat_id, mat_id, mat_id, mat_id, mat_id, mat_id, mat_id, mat_id, mat_id, mat_id };
+    // id::id_type materials[]{ mat_id, mat_id, mat_id, mat_id };
 
     // TODO: add add_render_item in renderer.
     id::id_type item_id{ gfx::add_render_item(entity_id, model_id, _countof(materials), &materials[0]) };

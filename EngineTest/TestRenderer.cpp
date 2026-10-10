@@ -180,7 +180,8 @@ game_entity::entity
 create_one_game_entity(bool is_camera) {
     using namespace DirectX;
     transform::init_info transform_info{};
-    math::vec3a rot{ 0.f, is_camera ? 3.14f : 0.f, 0 };
+    //math::vec3a rot{ 0.f, is_camera ? 3.14f : 0.f, 0 };
+    math::vec3a rot{ 0.f, 3.14159f, 0.f };
     XMVECTOR quat{ XMQuaternionRotationRollPitchYawFromVector(XMLoadFloat3A(&rot)) };
     math::vec4a rot_quat;
     XMStoreFloat4A(&rot_quat, quat);
