@@ -5,6 +5,7 @@
 #include "Content/ContentToEngine.h"
 #include "Components/Entity.h"
 #include "Components/Transform.h"
+#include "Components/Script.h"
 #include "TestRenderer.h"
 #include "ShaderCompilation.h"
 
@@ -13,6 +14,27 @@
 
 #if TEST_RENDERER
 using namespace mage;
+
+class rotator_script;
+REGISTER_SCRIPT(rotator_script);
+class rotator_script : public script::script_entity {
+public:
+    constexpr explicit rotator_script(mage::game_entity::entity entity)
+        : mage::script::script_entity(entity) {}
+
+    virtual void begin_play() {}
+    virtual void update(float dt) {
+        _angle += 0.25f * dt * math::two_pi;
+        if (_angle > -math::two_pi) _angle -= math::two_pi;
+        math::vec3a rot{ 0.f, _angle, 0.f };
+        DirectX::XMVECTOR quat{ DirectX::XMQuaternionRotationRollPitchYawFromVector(DirectX::XMLoadFloat3A(&rot)) };
+        math::vec4 rot_quat{};
+        DirectX::XMStoreFloat4(&rot_quat, quat);
+        set_rotation(rot_quat);
+    }
+private:
+    f32 _angle{ 0.f };
+};
 
 //////////////////////////////////////////////////////////////////////////////////
 #define ENABLE_TEST_WORKERS 0
@@ -177,33 +199,47 @@ bool read_file(std::filesystem::path path, std::unique_ptr<u8[]>& data, u64& siz
 }
 
 game_entity::entity
-create_one_game_entity(bool is_camera) {
+create_one_game_entity(math::vec3 position, math::vec3 rotation, bool rotates) {
     using namespace DirectX;
     transform::init_info transform_info{};
     //math::vec3a rot{ 0.f, is_camera ? 3.14f : 0.f, 0 };
-    math::vec3a rot{ 0.f, 3.14159f, 0.f };
-    XMVECTOR quat{ XMQuaternionRotationRollPitchYawFromVector(XMLoadFloat3A(&rot)) };
+    // math::vec3a rot{ 0.f, 3.14159f, 0.f };
+    XMVECTOR quat{ XMQuaternionRotationRollPitchYawFromVector(XMLoadFloat3(&rotation))};
     math::vec4a rot_quat;
     XMStoreFloat4A(&rot_quat, quat);
     memcpy(&transform_info.rotation[0], &rot_quat.x, sizeof(transform_info.rotation));
+    memcpy(&transform_info.position[0], &position.x, sizeof(transform_info.position));
+
+
+    script::init_info script_info{};
+    if (rotates) {
+        script_info.script_creator = script::detail::get_script_creator(script::detail::string_hash()("rotator_script"));
+        assert(script_info.script_creator);
+    }
 
     // just so it is outside of geometry we try to render
-    if (is_camera) {
+    /*if (is_camera) {
         transform_info.position[1] = 1.f;
         transform_info.position[2] = 3.f;
-    }
+    }*/
 
     game_entity::entity_info entity_info{};
     entity_info.tranform = &transform_info;
+    entity_info.script = &script_info;
     game_entity::entity ntt{ game_entity::create(entity_info) };
     assert(ntt.is_valid());
     return ntt;
 }
 
+void
+remove_game_entity(game_entity::entity_id id) {
+    game_entity::remove(id);
+}
+
 void create_camera_surface(camera_surface& surface, platform::window_init_info info) {
     surface.surface.window = platform::create_window(&info);
     surface.surface.surface = gfx::create_surface(surface.surface.window);
-    surface.entity = create_one_game_entity(true);
+    surface.entity = create_one_game_entity({0.f, 1.0f, 3.f}, {0.f, 3.14f, 0.f}, false);
     surface.camera = gfx::create_camera(gfx::perspective_camera_init_info{ surface.entity.get_id() });
     surface.camera.aspect_ratio((f32)surface.surface.window.width() / surface.surface.window.height());
 }
@@ -249,8 +285,8 @@ bool test_initialize() {
 
     init_test_workers(buffer_test_worker);
 
-
-    item_id = create_render_item(create_one_game_entity(false).get_id());
+    // centered in the world and rotating around the Y axis
+    item_id = create_render_item(create_one_game_entity({}, {}, true).get_id());
 
     is_restarting = false;
     return true;
@@ -275,10 +311,16 @@ bool EngineTest::initialize() {
 void EngineTest::run() {
     timer.begin();
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    script::update(timer.dt_avg());
     for (u32 i = 0; i < _countof(g_surfaces); ++i) {
         if (g_surfaces[i].surface.surface.is_valid()) {
             f32 threshold{ 10 };
-            g_surfaces[i].surface.surface.render({&item_id, &threshold, 1, g_surfaces[i].camera.get_id()});
+            gfx::frame_info info{};
+            info.render_item_ids = &item_id;
+            info.render_item_count = 1;
+            info.thresholds = &threshold;
+            info.camera_id = g_surfaces[i].camera.get_id();
+            g_surfaces[i].surface.surface.render(info);
         }
     }
     timer.end();

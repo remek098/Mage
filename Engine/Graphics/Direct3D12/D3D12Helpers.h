@@ -54,6 +54,20 @@ namespace mage::gfx::d3d12::d3dx {
             D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF   // D3D12_CONSERVATIVE_RASTERIZATION_MODE ConservativeRaster;
         };
 
+        const D3D12_RASTERIZER_DESC frontface_cull{
+            D3D12_FILL_MODE_SOLID,                      // D3D12_FILL_MODE FillMode;
+            D3D12_CULL_MODE_FRONT,                      // D3D12_CULL_MODE CullMode;
+            1,                                          // BOOL FrontCounterClockwise;
+            0,                                          // INT DepthBias;
+            0,                                          // FLOAT DepthBiasClamp;
+            0,                                          // FLOAT SlopeScaledDepthBias;
+            1,                                          // BOOL DepthClipEnable;
+            0,                                          // BOOL MultisampleEnable;
+            0,                                          // BOOL AntialiasedLineEnable;
+            0,                                          // UINT ForcedSampleCount;
+            D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF   // D3D12_CONSERVATIVE_RASTERIZATION_MODE ConservativeRaster;
+        };
+
         const D3D12_RASTERIZER_DESC wireframe{
             D3D12_FILL_MODE_WIREFRAME,                  // D3D12_FILL_MODE FillMode;
             D3D12_CULL_MODE_NONE,                       // D3D12_CULL_MODE CullMode;

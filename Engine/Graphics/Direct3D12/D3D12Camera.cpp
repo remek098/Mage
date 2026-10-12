@@ -6,14 +6,14 @@ namespace {
 utl::free_list<d3d12_camera>        cameras;
 
 void
-set_up_vector(d3d12_camera camera, const void* const data, [[maybe_unused]] u32 size) {
+set_up_vector(d3d12_camera& camera, const void* const data, [[maybe_unused]] u32 size) {
     math::vec3 up_vector{ *(math::vec3*)data };
     assert(sizeof(up_vector) == size);
     camera.up(up_vector);
 }
 
 void
-set_field_of_view(d3d12_camera camera, const void* const data, [[maybe_unused]] u32 size) {
+set_field_of_view(d3d12_camera& camera, const void* const data, [[maybe_unused]] u32 size) {
     assert(camera.projection_type() == gfx::camera::perspective);
     f32 fov{ *(f32*)data };
     assert(sizeof(fov) == size);
@@ -21,7 +21,7 @@ set_field_of_view(d3d12_camera camera, const void* const data, [[maybe_unused]] 
 }
 
 void
-set_aspect_ratio(d3d12_camera camera, const void* const data, [[maybe_unused]] u32 size) {
+set_aspect_ratio(d3d12_camera& camera, const void* const data, [[maybe_unused]] u32 size) {
     assert(camera.projection_type() == gfx::camera::perspective);
     f32 aspect_ratio{ *(f32*)data };
     assert(sizeof(aspect_ratio) == size);
@@ -29,7 +29,7 @@ set_aspect_ratio(d3d12_camera camera, const void* const data, [[maybe_unused]] u
 }
 
 void
-set_view_width(d3d12_camera camera, const void* const data, [[maybe_unused]] u32 size) {
+set_view_width(d3d12_camera& camera, const void* const data, [[maybe_unused]] u32 size) {
     assert(camera.projection_type() == gfx::camera::ortographic);
     f32 width{ *(f32*)data };
     assert(sizeof(width) == size);
@@ -37,7 +37,7 @@ set_view_width(d3d12_camera camera, const void* const data, [[maybe_unused]] u32
 }
 
 void
-set_view_height(d3d12_camera camera, const void* const data, [[maybe_unused]] u32 size) {
+set_view_height(d3d12_camera& camera, const void* const data, [[maybe_unused]] u32 size) {
     assert(camera.projection_type() == gfx::camera::ortographic);
     f32 height{ *(f32*)data };
     assert(sizeof(height) == size);
@@ -45,63 +45,63 @@ set_view_height(d3d12_camera camera, const void* const data, [[maybe_unused]] u3
 }
 
 void
-set_near_z(d3d12_camera camera, const void* const data, [[maybe_unused]] u32 size) {
+set_near_z(d3d12_camera& camera, const void* const data, [[maybe_unused]] u32 size) {
     f32 near_z{ *(f32*)data };
     assert(sizeof(near_z) == size);
     camera.near_z(near_z);
 }
 
 void
-set_far_z(d3d12_camera camera, const void* const data, [[maybe_unused]] u32 size) {
+set_far_z(d3d12_camera& camera, const void* const data, [[maybe_unused]] u32 size) {
     f32 far_z{ *(f32*)data };
     assert(sizeof(far_z) == size);
     camera.far_z(far_z);
 }
 
 void
-get_view(d3d12_camera camera, void* const data, [[maybe_unused]] u32 size) {
+get_view(d3d12_camera& camera, void* const data, [[maybe_unused]] u32 size) {
     math::mat4x4* const matrix{ (math::mat4x4* const)data };
     assert(sizeof(math::mat4x4) == size);
     DirectX::XMStoreFloat4x4(matrix, camera.view());
 }
 
 void
-get_projection(d3d12_camera camera, void* const data, [[maybe_unused]] u32 size) {
+get_projection(d3d12_camera& camera, void* const data, [[maybe_unused]] u32 size) {
     math::mat4x4* const matrix{ (math::mat4x4* const)data };
     assert(sizeof(math::mat4x4) == size);
     DirectX::XMStoreFloat4x4(matrix, camera.projection());
 }
 
 void
-get_inverse_projection(d3d12_camera camera, void* const data, [[maybe_unused]] u32 size) {
+get_inverse_projection(d3d12_camera& camera, void* const data, [[maybe_unused]] u32 size) {
     math::mat4x4* const matrix{ (math::mat4x4* const)data };
     assert(sizeof(math::mat4x4) == size);
     DirectX::XMStoreFloat4x4(matrix, camera.inverse_projection());
 }
 
 void
-get_view_projection(d3d12_camera camera, void* const data, [[maybe_unused]] u32 size) {
+get_view_projection(d3d12_camera& camera, void* const data, [[maybe_unused]] u32 size) {
     math::mat4x4* const matrix{ (math::mat4x4* const)data };
     assert(sizeof(math::mat4x4) == size);
     DirectX::XMStoreFloat4x4(matrix, camera.view_projection());
 }
 
 void
-get_inverse_view_projection(d3d12_camera camera, void* const data, [[maybe_unused]] u32 size) {
+get_inverse_view_projection(d3d12_camera& camera, void* const data, [[maybe_unused]] u32 size) {
     math::mat4x4* const matrix{ (math::mat4x4* const)data };
     assert(sizeof(math::mat4x4) == size);
     DirectX::XMStoreFloat4x4(matrix, camera.inverse_view_projection());
 }
 
 void
-get_up_vector(d3d12_camera camera, void* const data, [[maybe_unused]] u32 size) {
+get_up_vector(d3d12_camera& camera, void* const data, [[maybe_unused]] u32 size) {
     math::vec3* const up_vector{ (math::vec3* const)data };
     assert(sizeof(math::vec3) == size);
     DirectX::XMStoreFloat3(up_vector, camera.up()); // basically stores up_vector in derefferenced data pointer.
 }
 
 void
-get_field_of_view(d3d12_camera camera, void* const data, [[maybe_unused]] u32 size) {
+get_field_of_view(d3d12_camera& camera, void* const data, [[maybe_unused]] u32 size) {
     assert(camera.projection_type() == gfx::camera::perspective);
     f32* fov{ (f32* const)data };
     assert(sizeof(f32) == size);
@@ -109,7 +109,7 @@ get_field_of_view(d3d12_camera camera, void* const data, [[maybe_unused]] u32 si
 }
 
 void
-get_aspect_ratio(d3d12_camera camera, void* const data, [[maybe_unused]] u32 size) {
+get_aspect_ratio(d3d12_camera& camera, void* const data, [[maybe_unused]] u32 size) {
     assert(camera.projection_type() == gfx::camera::perspective);
     f32* const aspect_ratio{ (f32* const)data };
     assert(sizeof(f32) == size);
@@ -117,7 +117,7 @@ get_aspect_ratio(d3d12_camera camera, void* const data, [[maybe_unused]] u32 siz
 }
 
 void
-get_view_width(d3d12_camera camera, void* const data, [[maybe_unused]] u32 size) {
+get_view_width(d3d12_camera& camera, void* const data, [[maybe_unused]] u32 size) {
     assert(camera.projection_type() == gfx::camera::ortographic);
     f32* const width{ (f32* const)data };
     assert(sizeof(f32) == size);
@@ -125,7 +125,7 @@ get_view_width(d3d12_camera camera, void* const data, [[maybe_unused]] u32 size)
 }
 
 void
-get_view_height(d3d12_camera camera, void* const data, [[maybe_unused]] u32 size) {
+get_view_height(d3d12_camera& camera, void* const data, [[maybe_unused]] u32 size) {
     assert(camera.projection_type() == gfx::camera::ortographic);
     f32* const height{ (f32* const)data };
     assert(sizeof(f32) == size);
@@ -133,38 +133,38 @@ get_view_height(d3d12_camera camera, void* const data, [[maybe_unused]] u32 size
 }
 
 void
-get_near_z(d3d12_camera camera, void* const data, [[maybe_unused]] u32 size) {
+get_near_z(d3d12_camera& camera, void* const data, [[maybe_unused]] u32 size) {
     f32* const  near_z{ (f32* const)data };
     assert(sizeof(f32) == size);
     *near_z = camera.near_z();
 }
 
 void
-get_far_z(d3d12_camera camera, void* const data, [[maybe_unused]] u32 size) {
+get_far_z(d3d12_camera& camera, void* const data, [[maybe_unused]] u32 size) {
     f32* const far_z{ (f32* const)data };
     assert(sizeof(f32) == size);
     *far_z = camera.far_z();
 }
 
 void
-get_projection_type(d3d12_camera camera, void* const data, [[maybe_unused]] u32 size) {
+get_projection_type(d3d12_camera& camera, void* const data, [[maybe_unused]] u32 size) {
     gfx::camera::type* const projection_type{ (gfx::camera::type* const)data };
     assert(sizeof(gfx::camera::type) == size);
     *projection_type = camera.projection_type();
 }
 
 void
-get_entity_id(d3d12_camera camera, void* const data, [[maybe_unused]] u32 size) {
+get_entity_id(d3d12_camera& camera, void* const data, [[maybe_unused]] u32 size) {
     id::id_type* const entity_id{ (id::id_type* const)data };
     assert(sizeof(id::id_type) == size);
     *entity_id = camera.entity_id();
 }
 
 void
-dummy_set_fn(d3d12_camera, const void* const, u32) {}
+dummy_set_fn(d3d12_camera&, const void* const, u32) {}
 
-using set_function = void(*)(d3d12_camera, const void* const, u32);
-using get_function = void(*)(d3d12_camera, void* const, u32);
+using set_function = void(*)(d3d12_camera&, const void* const, u32);
+using get_function = void(*)(d3d12_camera&, void* const, u32);
 
 constexpr set_function set_functions[]{
     set_up_vector,

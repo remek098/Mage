@@ -1,139 +1,233 @@
 #include "Script.h"
 #include "Entity.h"
+#include "Transform.h"
+
+#define USE_TRANSFORM_CACHE_MAP 0
 
 namespace mage::script {
     
-    namespace {
+namespace {
 
-        // double indexing id_mapping -> script_entities.
-        // to make sure we have a tightly packed vector/array
-        utl::vector<detail::script_ptr> script_entities;
-        utl::vector<id::id_type>        id_mapping;
+// double indexing id_mapping -> script_entities.
+// to make sure we have a tightly packed vector/array
+utl::vector<detail::script_ptr>         script_entities;
+utl::vector<id::id_type>                id_mapping;
 
-        utl::vector<id::gen_type>       generations;
-        utl::deque<script_id>          free_ids;
+utl::vector<id::gen_type>               generations;
+utl::deque<script_id>                   free_ids;
+
+// so that we can track all changed to entities that have their transform changed (changed are cached and then at proper time in a frame applied)
+// those hold changes that happen in the game scripts.
+utl::vector<transform::component_cache> transform_cache;
+#if USE_TRANSFORM_CACHE_MAP
+std::unordered_map<id::id_type, u32>    cache_map;
+#endif
         
+using script_registry = std::unordered_map<size_t, detail::script_creator_fn_ptr>;
         
-        using script_registry = std::unordered_map<size_t, detail::script_creator_fn_ptr>;
-        
-        script_registry& registery() {
-            // NOTE: putting this static variable in function to avoid shenanigans with 
-            // initialization order of static data.
-            static script_registry reg;
-            return reg;
-        }
+script_registry& registery() {
+    // NOTE: putting this static variable in function to avoid shenanigans with 
+    // initialization order of static data.
+    static script_registry reg;
+    return reg;
+}
 
         
 
-        /*
-        NOTE: 
-        game code dll only holds game code and functions for instantiation
-        EngineDll.dll holds the data and engine code 
-        (e.g. pointers to game code's functions, which engine would later invoke when needed)
+/*
+NOTE: 
+game code dll only holds game code and functions for instantiation
+EngineDll.dll holds the data and engine code 
+(e.g. pointers to game code's functions, which engine would later invoke when needed)
 
-        Data is exchanged via Level Editor
-        */
+Data is exchanged via Level Editor
+*/
 #ifdef USE_WITH_EDITOR
-        utl::vector<std::string>& script_names() {
-            // NOTE: putting this static variable in function to avoid shenanigans with 
-            // initialization order of static data.
-            static utl::vector<std::string> names;
-            return names;
-        }
+utl::vector<std::string>& script_names() {
+    // NOTE: putting this static variable in function to avoid shenanigans with 
+    // initialization order of static data.
+    static utl::vector<std::string> names;
+    return names;
+}
 #endif
 
 
-        // if generations match (as they should), and we have a valid entity (script_entity is still entity)
-        // return true
-        bool exists(script_id id) {
-            assert(id::is_valid(id));
-            const id::id_type index{ id::index(id) };
-            assert(index < generations.size() && id_mapping[index] < script_entities.size());
-            assert(generations[index] == id::generation(id));
+// if generations match (as they should), and we have a valid entity (script_entity is still entity)
+// return true
+bool exists(script_id id) {
+    assert(id::is_valid(id));
+    const id::id_type index{ id::index(id) };
+    assert(index < generations.size() && id_mapping[index] < script_entities.size());
+    assert(generations[index] == id::generation(id));
 
             
-            return (generations[index] == id::generation(id)) &&
-                    script_entities[id_mapping[index]] &&
-                    script_entities[id_mapping[index]]->is_valid();
+    return (generations[index] == id::generation(id)) &&
+            script_entities[id_mapping[index]] &&
+            script_entities[id_mapping[index]]->is_valid();
 
-        }
-    } // anonymous namespace
+}
 
-    namespace detail {
-        u8 register_script(size_t tag, script_creator_fn_ptr func) {
-            bool result = registery().insert(script_registry::value_type{ tag, func }).second;
-            assert(result);
-            return result;
-        }
+#if USE_TRANSFORM_CACHE_MAP
 
-        script_creator_fn_ptr get_script_creator(size_t tag) {
-            // script_registry is defined as std::unordered_map
-            // remember we put {tag, func_key} pair inside registry when we register a script.
-            auto script = mage::script::registery().find(tag);
-            assert(script != mage::script::registery().end() && script->first == tag);
-            return script->second; // ptr to creation function
+transform::component_cache* const
+get_transform_component_cache_ptr(const game_entity::entity* const entity) {
+    assert(game_entity::is_alive((*entity).get_id()));
+    const transform::transform_id id{ (*entity).transform().get_id() };
+
+    u32 index{ u32_invalid_id };
+    auto pair = cache_map.try_emplace(id, id::invalid_id);
+
+    if (pair.second) {
+        index = (u32)transform_cache.size();
+        transform_cache.emplace_back();
+        transform_cache.back().id = id;
+        cache_map[id] = index;
+    }
+    else {
+        index = cache_map[id];
+    }
+
+    assert(index < transform_cache.size());
+    return &transform_cache[index];
+}
+#else
+// simple linear search inside cache array. To avoid allocations from std::unordered_map
+transform::component_cache* const
+get_transform_component_cache_ptr(const game_entity::entity* const entity) {
+    assert(game_entity::is_alive((*entity).get_id()));
+    const transform::transform_id id{ (*entity).transform().get_id() };
+
+    for (auto& cache : transform_cache) {
+        if (cache.id == id) {
+            return &cache;
         }
+    }
+
+    transform_cache.emplace_back();
+    transform_cache.back().id = id;
+
+    return &transform_cache.back();
+}
+#endif
+
+} // anonymous namespace
+
+namespace detail {
+u8 register_script(size_t tag, script_creator_fn_ptr func) {
+    bool result = registery().insert(script_registry::value_type{ tag, func }).second;
+    assert(result);
+    return result;
+}
+
+script_creator_fn_ptr get_script_creator(size_t tag) {
+    // script_registry is defined as std::unordered_map
+    // remember we put {tag, func_key} pair inside registry when we register a script.
+    auto script = mage::script::registery().find(tag);
+    assert(script != mage::script::registery().end() && script->first == tag);
+    return script->second; // ptr to creation function
+}
 
 
 
 #ifdef USE_WITH_EDITOR
-        u8 add_script_name(const char* name) {
-            script_names().emplace_back(name);
-            return true;
-        }
+u8 add_script_name(const char* name) {
+    script_names().emplace_back(name);
+    return true;
+}
 #endif // USE_WITH_EDITOR
 
-    } // namespace detail
+} // namespace detail
 
-    component create(const init_info& info, game_entity::entity entity) {
-        assert(entity.is_valid());
-        assert(info.script_creator);
+component create(const init_info& info, game_entity::entity entity) {
+    assert(entity.is_valid());
+    assert(info.script_creator);
 
-        script_id id;
-        if ( free_ids.size() > id::min_deleted_elements ) {
-            id = free_ids.front();
-            assert(!exists(id)); // assert that id doesn't exist
-            // free, reuse by increasing generation for that id slot
-            free_ids.pop_front();
-            id = script_id{ id::new_generation(id) };
-            ++generations[id::index(id)];
-        }
-        else {
-            // that means we got to add new slots at the end of arrays
-            id = script_id{ (id::id_type)id_mapping.size() };
-            id_mapping.emplace_back();
-            generations.push_back(0);
-        }
-
-        assert(id::is_valid(id));
-        // get position of where new script_entity was added, ofc it is end of script_entities array
-        const id::id_type index{ (id::id_type)script_entities.size() };
-        script_entities.emplace_back(info.script_creator(entity));
-        assert(script_entities.back()->get_id() == entity.get_id());    // should always be true
-        id_mapping[id::index(id)] = index;
-        return component{ id };
+    script_id id;
+    if ( free_ids.size() > id::min_deleted_elements ) {
+        id = free_ids.front();
+        assert(!exists(id)); // assert that id doesn't exist
+        // free, reuse by increasing generation for that id slot
+        free_ids.pop_front();
+        id = script_id{ id::new_generation(id) };
+        ++generations[id::index(id)];
+    }
+    else {
+        // that means we got to add new slots at the end of arrays
+        id = script_id{ (id::id_type)id_mapping.size() };
+        id_mapping.emplace_back();
+        generations.push_back(0);
     }
 
-    // swap the element at the end of script_entities array with the element we want to delete.
-    // reset id_mapping for deleted component,
-    // set new index that originally pointed to last element to the new position.
-    void remove(component c) {
-        assert(c.is_valid() && exists(c.get_id()));
-        const script_id id{ c.get_id() };
-        const id::id_type index{ id_mapping[id::index(id)] };
-        // get id of last script.
-        const script_id last_id{ script_entities.back()->script().get_id() };
-        utl::erase_unordered(script_entities, index);
-        id_mapping[id::index(last_id)] = index;
-        id_mapping[id::index(id)] = id::invalid_id;
+    assert(id::is_valid(id));
+    // get position of where new script_entity was added, ofc it is end of script_entities array
+    const id::id_type index{ (id::id_type)script_entities.size() };
+    script_entities.emplace_back(info.script_creator(entity));
+    assert(script_entities.back()->get_id() == entity.get_id());    // should always be true
+    id_mapping[id::index(id)] = index;
+    return component{ id };
+}
+
+// swap the element at the end of script_entities array with the element we want to delete.
+// reset id_mapping for deleted component,
+// set new index that originally pointed to last element to the new position.
+void remove(component c) {
+    assert(c.is_valid() && exists(c.get_id()));
+    const script_id id{ c.get_id() };
+    const id::id_type index{ id_mapping[id::index(id)] };
+    // get id of last script.
+    const script_id last_id{ script_entities.back()->script().get_id() };
+    utl::erase_unordered(script_entities, index);
+    id_mapping[id::index(last_id)] = index;
+    id_mapping[id::index(id)] = id::invalid_id;
+}
+
+void update(f32 dt) {
+    for ( auto& ptr : script_entities ) {
+        ptr->update(dt);
     }
 
-    void update(f32 dt) {
-        for ( auto& ptr : script_entities ) {
-            ptr->update(dt);
-        }
+    // after all scripts have been executed we can send the cached updates to the transform component module and
+    // reset our cache array and prepare for the next frame.
+    if (transform_cache.size()) {
+        transform::update(transform_cache.data(), (u32)transform_cache.size());
+        transform_cache.clear();
+
+#if USE_TRANSFORM_CACHE_MAP
+        cache_map.clear();
+#endif
     }
 }
+
+void 
+script_entity::set_rotation(const game_entity::entity* const entity, math::vec4 rotation_quaternion) {
+    transform::component_cache& cache{ *get_transform_component_cache_ptr(entity) };
+    cache.flags |= transform::component_flags::rotation;
+    cache.rotation = rotation_quaternion;
+}
+
+void 
+script_entity::set_orientation(const game_entity::entity* const entity, math::vec3 orientation_vector) {
+    transform::component_cache& cache{ *get_transform_component_cache_ptr(entity) };
+    cache.flags |= transform::component_flags::orientation;
+    cache.orientation = orientation_vector;
+}
+
+void 
+script_entity::set_position(const game_entity::entity* const entity, math::vec3 position) {
+    transform::component_cache& cache{ *get_transform_component_cache_ptr(entity) };
+    cache.flags |= transform::component_flags::position;
+    cache.position = position;
+}
+
+void 
+script_entity::set_scale(const game_entity::entity* const entity, math::vec3 scale) {
+    transform::component_cache& cache{ *get_transform_component_cache_ptr(entity) };
+    cache.flags |= transform::component_flags::scale;
+    cache.scale = scale;
+}
+
+
+} // namespace mage::script
 
 #ifdef USE_WITH_EDITOR
 #include <atlsafe.h>
@@ -142,9 +236,9 @@ extern "C" __declspec(dllexport)
 LPSAFEARRAY get_script_names() {
     const u32 size = (u32)mage::script::script_names().size();
     if ( !size ) return nullptr;
-
+    
     // NOTE: all this hustle just to get it to .NET/C# framework
-
+    
     // https://learn.microsoft.com/en-us/cpp/atl/reference/ccomsafearray-class?view=msvc-170
     CComSafeArray<BSTR> names(size);
     for ( u32 i = 0; i < size; ++i ) {
@@ -152,7 +246,7 @@ LPSAFEARRAY get_script_names() {
         // A2BSTR_EX -> macro used to convert LPCSTR (ANSI string) to BSTR (Basic string / COM string)
         names.SetAt(i, A2BSTR_EX(mage::script::script_names()[i].c_str()), false);
     }
-
+    
     // returns pointer to SAFEARRAY object
     // also the task of freeing this memory is "moved" to C# side of things -> so editor (garbage collected)
     return names.Detach();

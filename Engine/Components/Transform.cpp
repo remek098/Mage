@@ -11,6 +11,8 @@ utl::vector<math::vec3>     orientations;
 utl::vector<math::vec3>     positions;
 utl::vector<math::vec3>     scales;
 utl::vector<u8>             has_transforms; // to find out which entities have their transform matrices already calculated
+utl::vector<u8>             changes_from_previous_frame; // remember flags for each entity so that we know if it has been moved, rotated or scaled
+u8                          read_write_flag; // indicates when we need to reset changes_from_previous_frame array when we enter the writing phase of the frame.
 
 
 void
@@ -47,6 +49,36 @@ calculate_orientation(math::vec4 rotation) {
     return orientation;
 }
 
+void 
+set_rotation(transform_id id, const math::vec4& rotation_quaternion) {
+    const u32 index{ id::index(id) };
+    rotations[index] = rotation_quaternion;
+    orientations[index] = calculate_orientation(rotation_quaternion);
+    has_transforms[index] = 0; // so that transform matrices will also be recalculated when someone asks for them
+    changes_from_previous_frame[index] |= component_flags::rotation; // set update flag for rotation
+}
+
+void 
+set_orientation(transform_id, const math::vec3&) {
+}
+
+void 
+set_position(transform_id id, const math::vec3& position) {
+    const u32 index{ id::index(id) };
+    positions[index] = position;
+    has_transforms[index] = 0; // so that transform matrices will also be recalculated when someone asks for them
+    changes_from_previous_frame[index] |= component_flags::position; // set update flag for position
+}
+
+void 
+set_scale(transform_id id, const math::vec3& scale) {
+    const u32 index{ id::index(id) };
+    scales[index] = scale;
+    has_transforms[index] = 0; // so that transform matrices will also be recalculated when someone asks for them
+    changes_from_previous_frame[index] |= component_flags::scale; // set update flag for scale
+}
+
+
 } // anonymous namespace
 
 component create(const init_info& info, game_entity::entity entity) {
@@ -62,6 +94,7 @@ component create(const init_info& info, game_entity::entity entity) {
         positions[entity_index] = math::vec3{ info.position };
         scales[entity_index] = math::vec3{ info.scale };
         has_transforms[entity_index] = 0;
+        changes_from_previous_frame[entity_index] = (u8)component_flags::all;
     }
     else {
         assert(positions.size() == entity_index);
@@ -72,6 +105,7 @@ component create(const init_info& info, game_entity::entity entity) {
         to_world.emplace_back();
         inv_world.emplace_back();
         has_transforms.emplace_back((u8)0);
+        changes_from_previous_frame.emplace_back((u8)component_flags::all);
     }
 
     // NOTE: each entity has a transform component. Therefore ids for transform components are exactly the same as entity ids.
@@ -96,6 +130,38 @@ get_transform_matrices(const game_entity::entity_id id, math::mat4x4& world, mat
 
     world = to_world[entity_index];
     inverse_world = inv_world[entity_index];
+}
+
+void 
+get_updated_components_flags(const game_entity::entity_id* const ids, u32 count, u8* const flags) {
+    assert(ids && count && flags);
+    read_write_flag = 1; // meaning we're reading the data
+
+    for (u32 i{ 0 }; i < count; ++i) {
+        assert(game_entity::entity{ ids[i] }.is_valid());
+        flags[i] = changes_from_previous_frame[id::index(ids[i])];
+    }
+}
+
+void 
+update(const component_cache* const cache, u32 count) {
+    assert(cache && count);
+    // NOTE: clearing changes_from_previous_frame happens once every frame when there will be no reads
+    //       and the caches are about to be applied by calling this function (i.e. the rest of the current frame will only have writes).
+    if (read_write_flag) {
+        memset(changes_from_previous_frame.data(), 0, changes_from_previous_frame.size()); // u8 is 1 byte in size so skipping being verbose about it.
+        read_write_flag = 0;
+    }
+
+    for (u32 i{ 0 }; i < count; ++i) {
+        const component_cache& c{ cache[i] };
+        assert(component{ c.id }.is_valid());
+
+        if (c.flags & component_flags::rotation) set_rotation(c.id, c.rotation);
+        if (c.flags & component_flags::orientation) set_orientation(c.id, c.orientation);
+        if (c.flags & component_flags::position) set_position(c.id, c.position);
+        if (c.flags & component_flags::scale)   set_scale(c.id, c.scale);
+    }
 }
 
 math::vec3 
