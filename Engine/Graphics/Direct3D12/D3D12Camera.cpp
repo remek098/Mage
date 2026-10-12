@@ -227,9 +227,10 @@ d3d12_camera::update() {
     _view = XMMatrixLookToRH(_position, _direction, _up);
 
     if (_is_dirty) {
+        // NOTE: _near_z and _far_z are swapped due to usage of inverse depth in d3d12 renderer.
         _projection = (_projection_type == gfx::camera::perspective)
-            ? XMMatrixPerspectiveFovRH(_field_of_view * XM_PI, _aspect_ratio, _near_z, _far_z)
-            : XMMatrixOrthographicRH(_view_width, _view_height, _near_z, _far_z);
+            ? XMMatrixPerspectiveFovRH(_field_of_view * XM_PI, _aspect_ratio, _far_z, _near_z)
+            : XMMatrixOrthographicRH(_view_width, _view_height, _far_z, _near_z);
         _inverse_projection = XMMatrixInverse(nullptr, _projection);
         _is_dirty = false;
     }

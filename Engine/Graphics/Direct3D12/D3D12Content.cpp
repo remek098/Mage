@@ -47,9 +47,11 @@ std::mutex                                      material_mutex{};
 
 utl::free_list<d3d12_render_item>               render_items;
 utl::free_list<std::unique_ptr<id::id_type[]>>  render_item_ids;
+std::mutex                                      render_item_mutex{};
+
 utl::vector<ID3D12PipelineState*>               pipeline_states;
 std::unordered_map<u64, id::id_type>            pso_map;
-std::mutex                                      render_item_mutex{};
+std::mutex                                      pso_mutex{};
 
 // so that render_item::get_d3d12_render_item_ids() works fine, because it probably will be called every frame
 struct {
@@ -277,29 +279,36 @@ create_root_signature(material_type::type type, shader_flags::flags flags) {
 id::id_type
 create_pso_if_needed(const u8* const stream_ptr, u64 aligned_stream_size, [[maybe_unused]] bool is_depth) {
     const u64 key{ math::calc_crc32_u64(stream_ptr, aligned_stream_size) };
-    auto pair = pso_map.find(key);
+    
+    {// lock scope to check if PSO already exists.
+        std::lock_guard lock{ pso_mutex };
+        auto pair = pso_map.find(key);
 
-    if (pair != pso_map.end()) {
-        assert(pair->first == key);
-        return pair->second;
+        if (pair != pso_map.end()) {
+            assert(pair->first == key);
+            return pair->second;
+        }
     }
 
-    const id::id_type id{ (u32)pipeline_states.size() };
+    // creating new PSO is lock-free. Which means it can happen in parallel with rendering which in theory shouldn't cause any framerate problems.
     d3dx::d3d12_pipeline_state_subobject_stream* const stream{(d3dx::d3d12_pipeline_state_subobject_stream* const)stream_ptr};
-    pipeline_states.emplace_back(d3dx::create_pipeline_state(stream, sizeof(d3dx::d3d12_pipeline_state_subobject_stream)));
-    NAME_D3D12_OBJECT_INDEXED(pipeline_states.back(), key,
-                                is_depth ? L"Depth-only Pipeline State Object - key " : L"GPass Pipeline State Object - key ");
-    assert(id::is_valid(id));
-    pso_map[key] = id;
-    return id;
+    ID3D12PipelineState* pso{ d3dx::create_pipeline_state(stream, sizeof(d3dx::d3d12_pipeline_state_subobject_stream)) };
+    
+    { // lock the scope to add new PSO's pointer and id (Scoping is not necessary, but it's more obvious this way.)
+        std::lock_guard lock{ pso_mutex };
+
+        const id::id_type id{ (u32)pipeline_states.size() };
+        pipeline_states.emplace_back(pso);
+        NAME_D3D12_OBJECT_INDEXED(pipeline_states.back(), key,
+                                  is_depth ? L"Depth-only Pipeline State Object - key " : L"GPass Pipeline State Object - key ");
+
+        pso_map[key] = id;
+        return id;
+    }
 }
 
 pso_id
 create_pso(id::id_type material_id, D3D12_PRIMITIVE_TOPOLOGY primitive_topology, u32 elements_type) {
-    std::lock_guard lock{ material_mutex };
-    const d3d12_material_stream material{ materials[material_id].get() };
-
-
     /*
     Doing whatever is next because during creation we must check if we've already had created PSO stream with exact same contents.
     Therefore PSO that matches the current stream should already exist.
@@ -317,46 +326,51 @@ create_pso(id::id_type material_id, D3D12_PRIMITIVE_TOPOLOGY primitive_topology,
     // derefference pointer and start filling it out.
     d3dx::d3d12_pipeline_state_subobject_stream& stream{ *(d3dx::d3d12_pipeline_state_subobject_stream* const)stream_ptr };
 
-    D3D12_RT_FORMAT_ARRAY rt_array{};
-    rt_array.NumRenderTargets = 1;
-    rt_array.RTFormats[0] = gpass::main_buffer_format;
+    { // scoping material lock so that nothing is locked when we try to create a PSO.
+        std::lock_guard lock{ material_mutex };
+        const d3d12_material_stream material{ materials[material_id].get() };
 
-    stream.render_target_formats = rt_array;
-    stream.root_signature = root_signatures[material.root_signature_id()];
-    stream.primitive_topology = get_d3d_primitive_topology_type(primitive_topology);
-    stream.depth_stencil_format = gpass::depth_buffer_format;
-    // NOTE: current stream is for the gpass which comes after depth pre-pass; we don't want to write to depth buffer.
-    stream.rasterizer = d3dx::rasterizer_state.backface_cull;
-    stream.depth_stencil1 = d3dx::depth_state.enabled_readonly;
-    stream.blend = d3dx::blend_state.disabled;
+        D3D12_RT_FORMAT_ARRAY rt_array{};
+        rt_array.NumRenderTargets = 1;
+        rt_array.RTFormats[0] = gpass::main_buffer_format;
 
-    const shader_flags::flags flags{ material.shader_flags() };
-    D3D12_SHADER_BYTECODE shaders[shader_type::count]{};
-    u32 shader_index{ 0 };
-    for (u32 i{ 0 }; i < shader_type::count; ++i) {
-        if (flags & (1 << i)) {
-            mage::content::compiled_shader_ptr shader{ mage::content::get_shader(material.shader_ids()[shader_index]) };
-            assert(shader);
-            shaders[i].pShaderBytecode = shader->byte_code();
-            shaders[i].BytecodeLength = shader->byte_code_size();
-            ++shader_index;
+        stream.render_target_formats = rt_array;
+        stream.root_signature = root_signatures[material.root_signature_id()];
+        stream.primitive_topology = get_d3d_primitive_topology_type(primitive_topology);
+        stream.depth_stencil_format = gpass::depth_buffer_format;
+        // NOTE: current stream is for the gpass which comes after depth pre-pass; we don't want to write to depth buffer.
+        stream.rasterizer = d3dx::rasterizer_state.backface_cull;
+        stream.depth_stencil1 = d3dx::depth_state.reversed_readonly;
+        stream.blend = d3dx::blend_state.disabled;
+
+        const shader_flags::flags flags{ material.shader_flags() };
+        D3D12_SHADER_BYTECODE shaders[shader_type::count]{};
+        u32 shader_index{ 0 };
+        for (u32 i{ 0 }; i < shader_type::count; ++i) {
+            if (flags & (1 << i)) {
+                mage::content::compiled_shader_ptr shader{ mage::content::get_shader(material.shader_ids()[shader_index]) }; // thread-safe
+                assert(shader);
+                shaders[i].pShaderBytecode = shader->byte_code();
+                shaders[i].BytecodeLength = shader->byte_code_size();
+                ++shader_index;
+            }
         }
-    }
 
-    stream.vs = shaders[shader_type::vertex];
-    stream.ps = shaders[shader_type::pixel];
-    stream.ds = shaders[shader_type::domain];
-    stream.hs = shaders[shader_type::hull];
-    stream.gs = shaders[shader_type::geometry];
-    stream.cs = shaders[shader_type::compute];
-    stream.as = shaders[shader_type::amplification];
-    stream.ms = shaders[shader_type::mesh];
+        stream.vs = shaders[shader_type::vertex];
+        stream.ps = shaders[shader_type::pixel];
+        stream.ds = shaders[shader_type::domain];
+        stream.hs = shaders[shader_type::hull];
+        stream.gs = shaders[shader_type::geometry];
+        stream.cs = shaders[shader_type::compute];
+        stream.as = shaders[shader_type::amplification];
+        stream.ms = shaders[shader_type::mesh];
+    }
 
     pso_id id_pair{};
     id_pair.gpass_pso_id = create_pso_if_needed(stream_ptr, aligned_stream_size, false);
 
     stream.ps = D3D12_SHADER_BYTECODE{};
-    stream.depth_stencil1 = d3dx::depth_state.enabled;
+    stream.depth_stencil1 = d3dx::depth_state.reversed;
     id_pair.depth_pso_id = create_pso_if_needed(stream_ptr, aligned_stream_size, true);
 
     return id_pair;
@@ -662,7 +676,9 @@ get_items(const id::id_type* const d3d12_render_item_ids, u32 id_count, const it
     assert(d3d12_render_item_ids && id_count);
     assert(cache.entity_ids && cache.submesh_gpu_ids && cache.material_ids && cache.gpass_psos && cache.depth_psos);
 
-    std::lock_guard lock{ render_item_mutex };
+    std::lock_guard lock_render_items{ render_item_mutex };
+    std::lock_guard lock_pso{ pso_mutex };
+
     for (u32 i{ 0 }; i < id_count; ++i) {
         const d3d12_render_item& item{ render_items[d3d12_render_item_ids[i]] };
         cache.entity_ids[i] = item.entity_id;

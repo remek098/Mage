@@ -166,7 +166,7 @@ bool create_buffers(math::u32vec2 size) {
                                 D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE |
                                 D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE; // for possibility to read it in compute shader.
         info.clear_value.Format = desc.Format;
-        info.clear_value.DepthStencil.Depth = 1.f;
+        info.clear_value.DepthStencil.Depth = 0.f; // reversed depth
         info.clear_value.DepthStencil.Stencil = 0;
 
         gpass_depth_buffer = d3d12_depth_buffer{ info };
@@ -181,7 +181,7 @@ bool create_buffers(math::u32vec2 size) {
 
 
 void
-fill_per_object_data(constant_buffer& cbuffer, const d3d12_frame_info& info) {
+fill_per_object_data(const d3d12_frame_info& info) {
     const gpass_cache& cache{ frame_cache };
 
     const u32 render_items_count{ cache.size() };
@@ -192,6 +192,7 @@ fill_per_object_data(constant_buffer& cbuffer, const d3d12_frame_info& info) {
     id::id_type current_entity_id{ id::invalid_id };
     hlsl::PerObjectData* current_data_ptr{ nullptr };
 
+    constant_buffer& cbuffer{ core::cbuffer() };
 
     using namespace DirectX;
     for (u32 i{ 0 }; i < render_items_count; ++i) {
@@ -253,6 +254,9 @@ prepare_render_frame(const d3d12_frame_info& info) {
 
     const material::materials_cache materials_cache{ cache.materials_cache() };
     material::get_materials(items_cache.material_ids, items_count, materials_cache);
+
+    constant_buffer& cbuffer{ core::cbuffer() }; // cbuffer for current frame
+    fill_per_object_data(info);
 }
 
 } // anonymous namespace
@@ -286,8 +290,6 @@ void set_size(math::u32vec2 size) {
 void depth_prepass(id3d12_graphics_command_list* cmd_list, const d3d12_frame_info& info) {
     prepare_render_frame(info);
 
-    constant_buffer& cbuffer{ core::cbuffer() }; // cbuffer for current frame
-    fill_per_object_data(cbuffer, info);
 
     const gpass_cache& cache{ frame_cache };
     const u32 items_count{ cache.size() };
@@ -379,7 +381,7 @@ void add_transitions_for_post_process(d3dx::d3d12_resource_barrier& barriers) {
 
 void set_render_targets_for_depth_prepass(id3d12_graphics_command_list* cmd_list) {
     const D3D12_CPU_DESCRIPTOR_HANDLE dsv{ gpass_depth_buffer.dsv() };
-    cmd_list->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, 0, 0, nullptr);
+    cmd_list->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 0.f, 0, 0, nullptr);
     cmd_list->OMSetRenderTargets(0, nullptr, 0, &dsv);
 }
 
