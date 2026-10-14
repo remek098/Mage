@@ -25,6 +25,13 @@ constexpr f32                   clear_value[4]{}; // black color to clear render
 
 #endif
 
+
+#if USE_STL_VECTOR
+#define CONSTEXPR
+#else
+#define CONSTEXPR constexpr
+#endif
+
 struct gpass_cache {
     utl::vector<id::id_type>    d3d12_render_item_ids;
 
@@ -70,15 +77,15 @@ struct gpass_cache {
         };
     }
 
-    constexpr u32 size() const {
+    CONSTEXPR u32 size() const {
         return (u32)d3d12_render_item_ids.size();
     }
 
-    constexpr void clear() {
+    CONSTEXPR void clear() {
         return d3d12_render_item_ids.clear();
     }
 
-    constexpr void resize() {
+    CONSTEXPR void resize() {
         const u64 items_count{ d3d12_render_item_ids.size() };
         const u64 new_buffer_size{ items_count * struct_size };
         const u64 old_buffer_size{ _buffer.size() };
@@ -258,7 +265,7 @@ prepare_render_frame(const d3d12_frame_info& info) {
     constant_buffer& cbuffer{ core::cbuffer() }; // cbuffer for current frame
     fill_per_object_data(info);
 }
-
+#undef CONSTEXPR
 } // anonymous namespace
 
 bool initialize() {

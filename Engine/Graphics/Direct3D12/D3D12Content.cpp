@@ -307,6 +307,15 @@ create_pso_if_needed(const u8* const stream_ptr, u64 aligned_stream_size, [[mayb
     }
 }
 
+#pragma intrinsic(_BitScanForward)
+shader_type::type
+get_shader_type(u32 flag) {
+    assert(flag);
+    unsigned long index;
+    _BitScanForward(&index, flag); // scan from LSB to MSB and if we encounter bit that is set to 1, we return it's index
+    return (shader_type::type)index;
+}
+
 pso_id
 create_pso(id::id_type material_id, D3D12_PRIMITIVE_TOPOLOGY primitive_topology, u32 elements_type) {
     /*
@@ -348,7 +357,10 @@ create_pso(id::id_type material_id, D3D12_PRIMITIVE_TOPOLOGY primitive_topology,
         u32 shader_index{ 0 };
         for (u32 i{ 0 }; i < shader_type::count; ++i) {
             if (flags & (1 << i)) {
-                mage::content::compiled_shader_ptr shader{ mage::content::get_shader(material.shader_ids()[shader_index]) }; // thread-safe
+                // NOTE: each type of shader may have keys that are generated from diffrent properties of submesh or material.
+                //       At this moment we only have diffrent kinds of vertex shaders depending on elements_type.
+                const u32 key{ get_shader_type(flags & (1 << i)) == shader_type::vertex ? elements_type : u32_invalid_id};
+                mage::content::compiled_shader_ptr shader{ mage::content::get_shader(material.shader_ids()[shader_index], key) }; // thread-safe
                 assert(shader);
                 shaders[i].pShaderBytecode = shader->byte_code();
                 shaders[i].BytecodeLength = shader->byte_code_size();

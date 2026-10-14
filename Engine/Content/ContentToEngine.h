@@ -25,7 +25,11 @@ typedef struct compiled_shader {
     constexpr const u8* hash() const { return &_hash[0]; }
     constexpr const u8* byte_code() const { return &_byte_code; }
 
-    constexpr u64 calc_size() const { return sizeof(u64) + hash_length + _byte_code_size; }
+    // get size of already existing buffer.
+    constexpr u64 buffer_size() const { return sizeof(_byte_code_size) + hash_length + _byte_code_size; }
+
+    // compute the required buffer size for a shader.
+    constexpr static u64 buffer_size(u64 size) { return sizeof(_byte_code_size) + hash_length + size; }
 
 private:
     u64       _byte_code_size;
@@ -43,9 +47,9 @@ struct lod_offset {
 id::id_type create_resource(const void* const data, asset_type::type type);
 void destroy_resource(id::id_type id, asset_type::type type);
 
-id::id_type add_shader(const u8* data);
-void remove_shader(id::id_type id);
-compiled_shader_ptr get_shader(id::id_type id);
+id::id_type add_shader_group(const u8* const* shaders, u32 num_shaders, const u32* const keys);
+void remove_shader_group(id::id_type id);
+compiled_shader_ptr get_shader(id::id_type id, u32 shader_key);
 
 void get_submesh_gpu_ids(id::id_type geometry_content_id, u32 id_count, id::id_type* const gpu_ids);
 void get_lod_offset(const id::id_type* const geometry_ids, const f32* const thresholds, u32 id_count,

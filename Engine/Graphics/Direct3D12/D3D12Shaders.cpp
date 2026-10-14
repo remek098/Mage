@@ -36,7 +36,7 @@ namespace mage::gfx::d3d12::shaders {
 
                 shader = reinterpret_cast<const content::compiled_shader_ptr>(&engine_shaders_blob[offset]);
                 //offset += sizeof(u64) + content::compiled_shader::hash_length + shader->byte_code_size();
-                offset += shader->calc_size();
+                offset += shader->buffer_size();
                 ++index;
             }
             assert(offset == size && index == engine_shader::count);

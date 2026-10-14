@@ -57,13 +57,41 @@ private:
 	u32				_lod_count;
 };
 
-// this constant indicates an element in geometry_hierarchies is not a pointer, but a gpu_id
-constexpr uintptr_t single_mesh_marker{ (uintptr_t)0x01 };
-utl::free_list<u8*> geometry_hierarchies;
-std::mutex			geometry_mutex;
 
-utl::free_list<std::unique_ptr<u8[]>>	shaders;
-std::mutex								shaders_mutex;
+/*
+Doing this workaround only because cpp is very lovely programming language (nuh, just kidding) (or maybe not :) ).
+
+std::vector provides "strong exception guarantee" for inserting something into the vector.
+
+Meaning that if exception occurs inside the function, the standard guarantees that the program state will be rolled back to
+what it was before the function was called.
+That means std::vector can only move the elements it holds if the move constructor and assignment of the elements are marked noexcept
+(promise to not throw exceptions).
+Otherwise they will be copied instead, so that the old state of the vector still exists in case a rollback is needed when an exception occurs.
+If an exception were to occur inside the move constructor, there is no way to guarantee a rollback to before that move constructor was called.
+(If the elements are only movable and not copyable, that's also fine, but the "strong exception guarantee" doesn't apply 
+if those move operations are not noexcept).
+
+And for some "Simply Lovely" reason, std::unordered_map doesn't have a noexcept move constructor.
+*/
+struct noexcept_map {
+	std::unordered_map<u32, std::unique_ptr<u8[]>> map;
+
+	noexcept_map() = default;
+	noexcept_map(const noexcept_map&) = default;
+	noexcept_map(noexcept_map&&) noexcept = default;
+	noexcept_map& operator=(const noexcept_map&) = default;
+	noexcept_map& operator=(noexcept_map&&) noexcept = default;
+};
+
+// this constant indicates an element in geometry_hierarchies is not a pointer, but a gpu_id
+constexpr uintptr_t												single_mesh_marker{ (uintptr_t)0x01 };
+utl::free_list<u8*>												geometry_hierarchies;
+std::mutex														geometry_mutex;
+
+
+utl::free_list<noexcept_map>									shader_groups;
+std::mutex														shaders_mutex;
 
 // NOTE: expects the same data as create_geometry_resource()
 u32 
@@ -314,29 +342,47 @@ destroy_resource(id::id_type id, asset_type::type type) {
 }
 
 id::id_type 
-add_shader(const u8* data) {
-	const compiled_shader_ptr shader_ptr{ (const compiled_shader_ptr)data };
-	// size = sizeof(u64) + compiled_shader::hash_length + shader_ptr->byte_code_size();
-	const u64 size{ shader_ptr->calc_size() };
-	std::unique_ptr<u8[]> shader{ std::make_unique<u8[]>(size) };
-	memcpy(shader.get(), data, size);
+add_shader_group(const u8 *const * shaders, u32 num_shaders, const u32* const keys) {
+	assert(shaders && num_shaders && keys);
+	noexcept_map group;
+	for (u32 i{ 0 }; i < num_shaders; ++i) {
+		assert(shaders[i]);
+		const compiled_shader_ptr shader_ptr{ (const compiled_shader_ptr)shaders[i] };
+		// size = sizeof(u64) + compiled_shader::hash_length + shader_ptr->byte_code_size();
+		//const u64 size{ compiled_shader::buffer_size(shader_ptr->byte_code_size()) };
+		const u64 size{ shader_ptr->buffer_size() };
+		std::unique_ptr<u8[]> shader{ std::make_unique<u8[]>(size) };
+		memcpy(shader.get(), shaders[i], size);
+		group.map[keys[i]] = std::move(shader);
+	}
+
 
 	std::lock_guard lock{ shaders_mutex };
-	return shaders.add(std::move(shader));
+	return shader_groups.add(std::move(group));
 }
 
 void 
-remove_shader(id::id_type id) {
+remove_shader_group(id::id_type id) {
 	std::lock_guard lock{ shaders_mutex };
 	assert(id::is_valid(id));
-	shaders.remove(id);
+
+	shader_groups[id].map.clear();
+	shader_groups.remove(id);
 }
 
 compiled_shader_ptr 
-get_shader(id::id_type id) {
+get_shader(id::id_type id, u32 shader_key) {
 	std::lock_guard lock{ shaders_mutex };
 	assert(id::is_valid(id));
-	return (const compiled_shader_ptr)(shaders[id].get());
+
+	for (const auto& [key, value] : shader_groups[id].map) {
+		if (key == shader_key) {
+			return (const compiled_shader_ptr)value.get();
+		}
+	}
+
+	assert(false); // should never occur.
+	return nullptr;
 }
 
 void 
