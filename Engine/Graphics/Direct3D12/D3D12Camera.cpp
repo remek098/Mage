@@ -9,10 +9,10 @@ void
 set_up_vector(d3d12_camera& camera, const void* const data, [[maybe_unused]] u32 size) {
     math::vec3 up_vector{ *(math::vec3*)data };
     assert(sizeof(up_vector) == size);
-    camera.up(up_vector);
+    camera.up(up_vector); // set_up_vector function cannot be constexpr because it uses DirectXMath
 }
 
-void
+constexpr void
 set_field_of_view(d3d12_camera& camera, const void* const data, [[maybe_unused]] u32 size) {
     assert(camera.projection_type() == gfx::camera::perspective);
     f32 fov{ *(f32*)data };
@@ -20,7 +20,7 @@ set_field_of_view(d3d12_camera& camera, const void* const data, [[maybe_unused]]
     camera.field_of_view(fov);
 }
 
-void
+constexpr void
 set_aspect_ratio(d3d12_camera& camera, const void* const data, [[maybe_unused]] u32 size) {
     assert(camera.projection_type() == gfx::camera::perspective);
     f32 aspect_ratio{ *(f32*)data };
@@ -28,7 +28,7 @@ set_aspect_ratio(d3d12_camera& camera, const void* const data, [[maybe_unused]] 
     camera.aspect_ratio(aspect_ratio);
 }
 
-void
+constexpr void
 set_view_width(d3d12_camera& camera, const void* const data, [[maybe_unused]] u32 size) {
     assert(camera.projection_type() == gfx::camera::ortographic);
     f32 width{ *(f32*)data };
@@ -36,7 +36,7 @@ set_view_width(d3d12_camera& camera, const void* const data, [[maybe_unused]] u3
     camera.view_width(width);
 }
 
-void
+constexpr void
 set_view_height(d3d12_camera& camera, const void* const data, [[maybe_unused]] u32 size) {
     assert(camera.projection_type() == gfx::camera::ortographic);
     f32 height{ *(f32*)data };
@@ -44,14 +44,14 @@ set_view_height(d3d12_camera& camera, const void* const data, [[maybe_unused]] u
     camera.view_height(height);
 }
 
-void
+constexpr void
 set_near_z(d3d12_camera& camera, const void* const data, [[maybe_unused]] u32 size) {
     f32 near_z{ *(f32*)data };
     assert(sizeof(near_z) == size);
     camera.near_z(near_z);
 }
 
-void
+constexpr void
 set_far_z(d3d12_camera& camera, const void* const data, [[maybe_unused]] u32 size) {
     f32 far_z{ *(f32*)data };
     assert(sizeof(far_z) == size);
@@ -100,7 +100,7 @@ get_up_vector(d3d12_camera& camera, void* const data, [[maybe_unused]] u32 size)
     DirectX::XMStoreFloat3(up_vector, camera.up()); // basically stores up_vector in derefferenced data pointer.
 }
 
-void
+constexpr void
 get_field_of_view(d3d12_camera& camera, void* const data, [[maybe_unused]] u32 size) {
     assert(camera.projection_type() == gfx::camera::perspective);
     f32* fov{ (f32* const)data };
@@ -108,7 +108,7 @@ get_field_of_view(d3d12_camera& camera, void* const data, [[maybe_unused]] u32 s
     *fov = camera.field_of_view();
 }
 
-void
+constexpr void
 get_aspect_ratio(d3d12_camera& camera, void* const data, [[maybe_unused]] u32 size) {
     assert(camera.projection_type() == gfx::camera::perspective);
     f32* const aspect_ratio{ (f32* const)data };
@@ -116,7 +116,7 @@ get_aspect_ratio(d3d12_camera& camera, void* const data, [[maybe_unused]] u32 si
     *aspect_ratio = camera.aspect_ratio();
 }
 
-void
+constexpr void
 get_view_width(d3d12_camera& camera, void* const data, [[maybe_unused]] u32 size) {
     assert(camera.projection_type() == gfx::camera::ortographic);
     f32* const width{ (f32* const)data };
@@ -124,7 +124,7 @@ get_view_width(d3d12_camera& camera, void* const data, [[maybe_unused]] u32 size
     *width = camera.view_width();
 }
 
-void
+constexpr void
 get_view_height(d3d12_camera& camera, void* const data, [[maybe_unused]] u32 size) {
     assert(camera.projection_type() == gfx::camera::ortographic);
     f32* const height{ (f32* const)data };
@@ -132,35 +132,35 @@ get_view_height(d3d12_camera& camera, void* const data, [[maybe_unused]] u32 siz
     *height = camera.view_height();
 }
 
-void
+constexpr void
 get_near_z(d3d12_camera& camera, void* const data, [[maybe_unused]] u32 size) {
     f32* const  near_z{ (f32* const)data };
     assert(sizeof(f32) == size);
     *near_z = camera.near_z();
 }
 
-void
+constexpr void
 get_far_z(d3d12_camera& camera, void* const data, [[maybe_unused]] u32 size) {
     f32* const far_z{ (f32* const)data };
     assert(sizeof(f32) == size);
     *far_z = camera.far_z();
 }
 
-void
+constexpr void
 get_projection_type(d3d12_camera& camera, void* const data, [[maybe_unused]] u32 size) {
     gfx::camera::type* const projection_type{ (gfx::camera::type* const)data };
     assert(sizeof(gfx::camera::type) == size);
     *projection_type = camera.projection_type();
 }
 
-void
+constexpr void
 get_entity_id(d3d12_camera& camera, void* const data, [[maybe_unused]] u32 size) {
     id::id_type* const entity_id{ (id::id_type* const)data };
     assert(sizeof(id::id_type) == size);
     *entity_id = camera.entity_id();
 }
 
-void
+constexpr void
 dummy_set_fn(d3d12_camera&, const void* const, u32) {}
 
 using set_function = void(*)(d3d12_camera&, const void* const, u32);
@@ -244,21 +244,21 @@ d3d12_camera::up(math::vec3 up) {
     _up = DirectX::XMLoadFloat3(&up);
 }
 
-void
+constexpr void
 d3d12_camera::field_of_view(f32 fov) {
     assert(_projection_type == gfx::camera::perspective);
     _field_of_view = fov;
     _is_dirty = true;
 }
 
-void
+constexpr void
 d3d12_camera::aspect_ratio(f32 aspect_ratio) {
     assert(_projection_type == gfx::camera::perspective);
     _aspect_ratio = aspect_ratio;
     _is_dirty = true;
 }
 
-void
+constexpr void
 d3d12_camera::view_width(f32 width) {
     assert(width);
     assert(_projection_type == gfx::camera::ortographic);
@@ -266,7 +266,7 @@ d3d12_camera::view_width(f32 width) {
     _is_dirty = true;
 }
 
-void
+constexpr void
 d3d12_camera::view_height(f32 height) {
     assert(height);
     assert(_projection_type == gfx::camera::ortographic);
@@ -274,13 +274,13 @@ d3d12_camera::view_height(f32 height) {
     _is_dirty = true;
 }
 
-void
+constexpr void
 d3d12_camera::near_z(f32 near_z) {
     _near_z = near_z;
     _is_dirty = true;
 }
 
-void
+constexpr void
 d3d12_camera::far_z(f32 far_z) {
     _far_z = far_z;
     _is_dirty = true;

@@ -225,7 +225,7 @@ namespace MageEditor.Content
             get => _smoothingAngle;
             set
             {
-                if( _smoothingAngle != value)
+                if(!_smoothingAngle.IsTheSameAs(value)) // using our extension method because of float imprecision
                 {
                     _smoothingAngle = value;
                     OnPropertyChanged(nameof(SmoothingAngle));

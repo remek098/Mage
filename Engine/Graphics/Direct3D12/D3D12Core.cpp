@@ -6,7 +6,7 @@
 #include "D3D12Upload.h"
 #include "D3D12Content.h"
 #include "D3D12Camera.h"
-#include "Shaders/ShaderTypes.h"
+#include "Shaders/SharedTypes.h"
 
 using namespace Microsoft::WRL;
 

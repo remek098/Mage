@@ -89,6 +89,8 @@ bool resized = false;
 void destroy_camera_surface(camera_surface& surface);
 bool test_initialize();
 void test_shutdown();
+void generate_lights();
+void remove_lights();
 
 id::id_type create_render_item(id::id_type entity_id);
 void destroy_render_item(id::id_type item_id);
@@ -199,7 +201,7 @@ bool read_file(std::filesystem::path path, std::unique_ptr<u8[]>& data, u64& siz
 }
 
 game_entity::entity
-create_one_game_entity(math::vec3 position, math::vec3 rotation, bool rotates) {
+create_one_game_entity(math::vec3 position, math::vec3 rotation, const char* script_name) {
     using namespace DirectX;
     transform::init_info transform_info{};
     //math::vec3a rot{ 0.f, is_camera ? 3.14f : 0.f, 0 };
@@ -212,8 +214,8 @@ create_one_game_entity(math::vec3 position, math::vec3 rotation, bool rotates) {
 
 
     script::init_info script_info{};
-    if (rotates) {
-        script_info.script_creator = script::detail::get_script_creator(script::detail::string_hash()("rotator_script"));
+    if (script_name) {
+        script_info.script_creator = script::detail::get_script_creator(script::detail::string_hash()(script_name));
         assert(script_info.script_creator);
     }
 
@@ -239,7 +241,7 @@ remove_game_entity(game_entity::entity_id id) {
 void create_camera_surface(camera_surface& surface, platform::window_init_info info) {
     surface.surface.window = platform::create_window(&info);
     surface.surface.surface = gfx::create_surface(surface.surface.window);
-    surface.entity = create_one_game_entity({0.f, 1.0f, 3.f}, {0.f, 3.14f, 0.f}, false);
+    surface.entity = create_one_game_entity({0.f, 1.0f, 3.f}, {0.f, 3.14f, 0.f}, nullptr);
     surface.camera = gfx::create_camera(gfx::perspective_camera_init_info{ surface.entity.get_id() });
     surface.camera.aspect_ratio((f32)surface.surface.window.width() / surface.surface.window.height());
 }
@@ -286,13 +288,16 @@ bool test_initialize() {
     init_test_workers(buffer_test_worker);
 
     // centered in the world and rotating around the Y axis
-    item_id = create_render_item(create_one_game_entity({}, {}, true).get_id());
+    item_id = create_render_item(create_one_game_entity({}, {}, "rotator_script").get_id());
+
+    generate_lights();
 
     is_restarting = false;
     return true;
 }
 
 void test_shutdown() {
+    remove_lights();
     destroy_render_item(item_id);
     join_test_workers();
 

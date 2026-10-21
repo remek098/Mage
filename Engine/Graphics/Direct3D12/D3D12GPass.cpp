@@ -2,7 +2,7 @@
 #include "D3D12Shaders.h"
 #include "D3D12Content.h"
 #include "D3D12Camera.h"
-#include "Shaders/ShaderTypes.h"
+#include "Shaders/SharedTypes.h"
 #include "Components/Entity.h"
 #include "Components/Transform.h"
 

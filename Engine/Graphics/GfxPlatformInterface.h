@@ -23,6 +23,16 @@ namespace mage::gfx {
         } surface;
 
         struct {
+            light(*create)(light_init_info);
+            void(*remove)(light_id, u64);
+
+            // void* is data, u32 is sizeof that data
+            // u64 is light set to which the light will belong
+            void(*set_parameter)(light_id, u64, light_parameter::parameter, const void* const, u32);
+            void(*get_parameter)(light_id, u64, light_parameter::parameter, void* const, u32);
+        } light;
+
+        struct {
             camera(*create)(camera_init_info);
             void(*remove)(camera_id);
 

@@ -11,31 +11,31 @@ public:
     void update();
 
     void up(math::vec3 up);
-    void field_of_view(f32 fov);
-    void aspect_ratio(f32 aspect_ratio);
-    void view_width(f32 width);
-    void view_height(f32 height);
-    void near_z(f32 near_z);
-    void far_z(f32 far_z);
-
-    [[nodiscard]] DirectX::XMMATRIX view() const { return _view; }
-    [[nodiscard]] DirectX::XMMATRIX projection() const { return _projection; }
-    [[nodiscard]] DirectX::XMMATRIX inverse_projection() const { return _inverse_projection; }
-    [[nodiscard]] DirectX::XMMATRIX view_projection() const { return _view_projection; }
-    [[nodiscard]] DirectX::XMMATRIX inverse_view_projection() const { return _inverse_view_projection; }
-     
-    [[nodiscard]] DirectX::XMVECTOR position() const { return _position; }
-    [[nodiscard]] DirectX::XMVECTOR direction() const { return _direction; }
-    [[nodiscard]] DirectX::XMVECTOR up() const { return _up; }
-    [[nodiscard]] f32 near_z() const { return _near_z; }
-    [[nodiscard]] f32 far_z() const { return _far_z; }
-    [[nodiscard]] f32 field_of_view() const { return _field_of_view; }
-    [[nodiscard]] f32 aspect_ratio() const { return _aspect_ratio; }
-    [[nodiscard]] f32 view_width() const { return _view_width; }
-    [[nodiscard]] f32 view_height() const { return _view_height; }
+    constexpr void field_of_view(f32 fov);
+    constexpr void aspect_ratio(f32 aspect_ratio);
+    constexpr void view_width(f32 width);
+    constexpr void view_height(f32 height);
+    constexpr void near_z(f32 near_z);
+    constexpr void far_z(f32 far_z);
     
-    [[nodiscard]] gfx::camera::type projection_type() const { return _projection_type; }
-    [[nodiscard]] id::id_type entity_id() const { return _entity_id; }
+    [[nodiscard]] constexpr DirectX::XMMATRIX view() const { return _view; }
+    [[nodiscard]] constexpr DirectX::XMMATRIX projection() const { return _projection; }
+    [[nodiscard]] constexpr DirectX::XMMATRIX inverse_projection() const { return _inverse_projection; }
+    [[nodiscard]] constexpr DirectX::XMMATRIX view_projection() const { return _view_projection; }
+    [[nodiscard]] constexpr DirectX::XMMATRIX inverse_view_projection() const { return _inverse_view_projection; }
+     
+    [[nodiscard]] constexpr DirectX::XMVECTOR position() const { return _position; }
+    [[nodiscard]] constexpr DirectX::XMVECTOR direction() const { return _direction; }
+    [[nodiscard]] constexpr DirectX::XMVECTOR up() const { return _up; }
+    [[nodiscard]] constexpr f32 near_z() const { return _near_z; }
+    [[nodiscard]] constexpr f32 far_z() const { return _far_z; }
+    [[nodiscard]] constexpr f32 field_of_view() const { return _field_of_view; }
+    [[nodiscard]] constexpr f32 aspect_ratio() const { return _aspect_ratio; }
+    [[nodiscard]] constexpr f32 view_width() const { return _view_width; }
+    [[nodiscard]] constexpr f32 view_height() const { return _view_height; }
+    
+    [[nodiscard]] constexpr gfx::camera::type projection_type() const { return _projection_type; }
+    [[nodiscard]] constexpr id::id_type entity_id() const { return _entity_id; }
 private:
     DirectX::XMMATRIX   _view;
     DirectX::XMMATRIX   _projection;
