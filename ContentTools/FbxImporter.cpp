@@ -649,8 +649,8 @@ void import_fbx(const char* file_path, scene& out_scene, geometry_import_setting
                                                 aiProcess_SortByPType |
                                                 aiProcess_GenSmoothNormals |
                                                 aiProcess_CalcTangentSpace |
-                                                aiProcess_GlobalScale |
-                                                aiProcess_ConvertToLeftHanded // Normalizes coordinate space and axis orientation
+                                                aiProcess_GlobalScale // |
+                                                // aiProcess_ConvertToLeftHanded // Normalizes coordinate space and axis orientation
     );
 
     if (!ai_scene || !ai_scene->mRootNode) return;

@@ -58,10 +58,12 @@ struct VertexElement
 #endif
 };
 
-ConstantBuffer<GlobalShaderData>    GlobalData      : register(b0, space0);
-ConstantBuffer<PerObjectData>       PerObjectBuffer : register(b1, space0);
-StructuredBuffer<float3>            VertexPositions : register(t0, space0);
-StructuredBuffer<VertexElement>     Elements        : register(t1, space0);
+ConstantBuffer<GlobalShaderData>                GlobalData          : register(b0, space0);
+ConstantBuffer<PerObjectData>                   PerObjectBuffer     : register(b1, space0);
+StructuredBuffer<float3>                        VertexPositions     : register(t0, space0);
+StructuredBuffer<VertexElement>                 Elements            : register(t1, space0);
+
+StructuredBuffer<DirectionalLightParameters>    DirectionalLights   : register(t3, space0);
 
 const static float InvIntervals = 2.f / ((1 << 16) - 1);
 
@@ -119,7 +121,34 @@ VertexOut TestShaderVS(in uint VertexIdx : SV_VertexID)
 PixelOut TestShaderPS(in VertexOut psIn)
 {
     PixelOut psOut;
-    psOut.Color = float4(psIn.WorldNormal, 1.f);
     
+    float3 normal = normalize(psIn.WorldNormal); // interpolated value, it's possible it has non-unit length => normalize
+    float3 viewDir = normalize(GlobalData.CameraPosition - psIn.WorldPosition);
+    
+    float3 color = 0;
+    
+    for (uint i = 0; i < GlobalData.NumDirectionalLights; ++i)
+    {
+        // calculate contribution of each directional light to this pixel
+        DirectionalLightParameters light = DirectionalLights[i];
+        
+        float3 lightDirection = light.Direction;
+        if (abs(lightDirection.z - 1.f) < 0.001f)
+        {
+            lightDirection = GlobalData.CameraDirection; // light object from whenever camera is.
+        }
+        
+        float diffuse = max(dot(normal, -lightDirection), 0.f); // cosine of the angle between surface normal and the vector towards the light
+        float3 reflection = reflect(lightDirection, normal);
+        float specular = pow(max(dot(viewDir, reflection), 0.f), 16) * 0.5f;
+
+        float3 lightColor = light.Color * light.Intensity;
+        color += (diffuse + specular) * lightColor;
+    }
+    
+    float3 ambient = 10 / 255.f;
+    psOut.Color = saturate(float4(color + ambient, 1.f)); 
+    
+    // psOut.Color = float4(psIn.WorldNormal, 1.f);
     return psOut;
 }

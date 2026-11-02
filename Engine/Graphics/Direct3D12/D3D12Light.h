@@ -2,7 +2,14 @@
 
 #include "D3D12CommonHeaders.h"
 
+namespace mage::gfx::d3d12 {
+struct d3d12_frame_info;
+}
+
 namespace mage::gfx::d3d12::light {
+
+bool initialize();
+void shutdown();
 
 /// <summary>
 /// Adds new light to the specified light_set in light_init_info parameter. (std::unordered_map<u64, light_set> underneath holds all light_sets)
@@ -39,4 +46,9 @@ void set_parameter(light_id id, u64 light_set_key, light_parameter::parameter pa
 /// <param name="size">Size of the parameter you want to retrieve. Needs to match the size of sent data <para/>
 /// (which needs to match the size of the type you want to set.)</param>
 void get_parameter(light_id id, u64 light_set_key, light_parameter::parameter parameter, void *const data, u32 size);
+
+void update_light_buffers(const d3d12_frame_info& d3d12_info);
+D3D12_GPU_VIRTUAL_ADDRESS non_cullable_light_buffer(u32 frame_index);
+u32 non_cullable_light_count(u64 light_set_key);
+
 }

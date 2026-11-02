@@ -92,8 +92,9 @@ void test_shutdown();
 void generate_lights();
 void remove_lights();
 
-id::id_type create_render_item(id::id_type entity_id);
-void destroy_render_item(id::id_type item_id);
+void create_render_items();
+void destroy_render_items();
+void get_render_items(id::id_type* items, u32 count);
 
 LRESULT win_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
     bool toggle_fullscreen = false;
@@ -241,7 +242,13 @@ remove_game_entity(game_entity::entity_id id) {
 void create_camera_surface(camera_surface& surface, platform::window_init_info info) {
     surface.surface.window = platform::create_window(&info);
     surface.surface.surface = gfx::create_surface(surface.surface.window);
-    surface.entity = create_one_game_entity({0.f, 1.0f, 3.f}, {0.f, 3.14f, 0.f}, nullptr);
+    // surface.entity = create_one_game_entity({/*-2.4f, -2.0f, 0.5f*/ 5.02f, 1.8f, 3.43f }, {/*0.f, 3.14f, 0.f*/ 0.2f, -2.15f, 0.f}, nullptr);
+    // surface.entity = create_one_game_entity({ 4.f, 1.8f, -10.59f }, { 0.2f, -0.1f, 0.f }, nullptr);
+    surface.entity = create_one_game_entity(
+        { 0.0f, 3.5f, 15.0f },    // Position: Centered horizontally, slightly elevated, out in front on positive Z
+        { 0.15f, 3.14159f, 0.f }, // Rotation: Yawned ~180 degrees (PI radians) to face backward toward the interior
+        nullptr
+    );
     surface.camera = gfx::create_camera(gfx::perspective_camera_init_info{ surface.entity.get_id() });
     surface.camera.aspect_ratio((f32)surface.surface.window.width() / surface.surface.window.height());
 }
@@ -288,7 +295,7 @@ bool test_initialize() {
     init_test_workers(buffer_test_worker);
 
     // centered in the world and rotating around the Y axis
-    item_id = create_render_item(create_one_game_entity({}, {}, "rotator_script").get_id());
+    create_render_items();
 
     generate_lights();
 
@@ -298,7 +305,7 @@ bool test_initialize() {
 
 void test_shutdown() {
     remove_lights();
-    destroy_render_item(item_id);
+    destroy_render_items();
     join_test_workers();
 
     if (id::is_valid(model_id)) content::destroy_resource(model_id, content::asset_type::mesh);
@@ -319,11 +326,17 @@ void EngineTest::run() {
     script::update(timer.dt_avg());
     for (u32 i = 0; i < _countof(g_surfaces); ++i) {
         if (g_surfaces[i].surface.surface.is_valid()) {
-            f32 threshold{ 10 };
+            f32 threshold[]{ 10, 10 };
+
+            id::id_type render_items[2]{};
+            get_render_items(&render_items[0], 2);
+
             gfx::frame_info info{};
-            info.render_item_ids = &item_id;
-            info.render_item_count = 1;
-            info.thresholds = &threshold;
+            info.render_item_ids = &render_items[0];
+            info.render_item_count = 2;
+            info.thresholds = threshold;
+            info.light_set_key = 0;
+            info.avarage_frame_time = timer.dt_avg();
             info.camera_id = g_surfaces[i].camera.get_id();
             g_surfaces[i].surface.surface.render(info);
         }

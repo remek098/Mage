@@ -1,4 +1,5 @@
 #include "D3D12Light.h"
+#include "D3D12Core.h"
 #include "Shaders/SharedTypes.h"
 #include "EngineAPI/GameEntity.h"
 
@@ -72,6 +73,20 @@ public:
         }
 
         _owners.remove(id);
+    }
+
+    void update_transforms() {
+        // update direction for non-cullable lights
+        for (const auto& id : _non_cullable_owners) {
+            if (!id::is_valid(id)) continue;
+
+            const light_owner& owner{ _owners[id] };
+            const game_entity::entity entity{ game_entity::entity_id{owner.entity_id} };
+            hlsl::DirectionalLightParameters& params{ _non_cullable_lights[owner.data_index] };
+            params.Direction = entity.orientation();
+        }
+
+        // TODO: cullable lights
     }
 
     constexpr void enable(light_id id, bool is_enabled) {
@@ -163,7 +178,7 @@ public:
         // make sure size has proper alignment for D3D12 Constant Buffer.
         assert(buffer_size == math::align_size_up<D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT>(
             non_cullable_lights_count() * sizeof(hlsl::DirectionalLightParameters)));
-        
+
         const u32 count{ (u32)_non_cullable_owners.size() };
         u32 index{ 0 };
         for (u32 i{ 0 }; i < count; ++i) {
@@ -179,15 +194,88 @@ public:
         }
     }
 
+    constexpr bool has_lights() const { return _owners.size() > 0; }
+
 private:
     // NOTE: these are not tightly packed.
     utl::free_list<light_owner>                     _owners;
     utl::vector<hlsl::DirectionalLightParameters>   _non_cullable_lights;
     utl::vector<light_id>                           _non_cullable_owners; // contains index to each owner
 };
+
+class d3d12_light_buffer {
+public:
+    d3d12_light_buffer() = default;
+    CONSTEXPR void update_light_buffers(light_set& set, u64 light_set_key, u32 frame_index) {
+        // buffer sizes needed to contain our light data
+        u32 sizes[light_buffer::count]{};
+        sizes[light_buffer::non_cullable_light] = set.non_cullable_lights_count() * sizeof(hlsl::DirectionalLightParameters);
+
+        // get current buffer size and check if we need to resize it.
+        u32 current_sizes[light_buffer::count]{};
+        current_sizes[light_buffer::non_cullable_light] = _buffers[light_buffer::non_cullable_light].buffer.size();
+
+        if (current_sizes[light_buffer::non_cullable_light] < sizes[light_buffer::non_cullable_light]) {
+            resize_buffer(light_buffer::non_cullable_light, sizes[light_buffer::non_cullable_light], frame_index);
+        }
+
+        // this member function will make sure the data is copied to gpu buffer.
+        set.non_cullable_lights((hlsl::DirectionalLightParameters *const)_buffers[light_buffer::non_cullable_light].cpu_address,
+                                _buffers[light_buffer::non_cullable_light].buffer.size());
+
+        // TODO: cullable lights
+    }
+
+    constexpr void release() {
+        for (u32 i{ 0 }; i < light_buffer::count; ++i) {
+            _buffers[i].buffer.release();
+            _buffers[i].cpu_address = nullptr;
+        }
+    }
+
+    constexpr D3D12_GPU_VIRTUAL_ADDRESS non_cullable_lights() const {
+        return _buffers[light_buffer::non_cullable_light].buffer.gpu_address();
+    }
+
+private:
+    struct light_buffer {
+        enum type : u32 {
+            non_cullable_light,
+            cullable_light,
+            culling_info,
+
+            count
+        };
+
+        d3d12_buffer        buffer{};
+        u8*                 cpu_address{ nullptr };
+    };
+
+    void resize_buffer(light_buffer::type type, u32 size, [[maybe_unused]] u32 frame_index) {
+        assert(type < light_buffer::count);
+        if (!size) return;
+
+        _buffers[type].buffer.release();
+        _buffers[type].buffer = d3d12_buffer{ constant_buffer::get_default_init_info(size), true };
+        NAME_D3D12_OBJECT_INDEXED(_buffers[type].buffer.buffer(), frame_index,
+                                  type == light_buffer::non_cullable_light ? L"Non-cullable Light Buffer" :
+                                  type == light_buffer::cullable_light ? L"Cullable Light Buffer" : L"Light Culling Info Buffer");
+
+        // write the memory address of mapped memory to our cpu_address variable.
+        D3D12_RANGE range{};
+        DXCALL(_buffers[type].buffer.buffer()->Map(0, &range, (void **)(&_buffers[type].cpu_address)));
+        assert(_buffers[type].cpu_address); // check that it's not a nullptr
+    }
+
+private:
+    light_buffer            _buffers[light_buffer::count];
+    u64                     _current_light_set_key{ 0 };
+};
+
 #undef CONSTEXPR
 
 std::unordered_map<u64, light_set>      light_sets;
+d3d12_light_buffer                      light_buffers[frame_buffer_count];
 
 
 constexpr void
@@ -270,21 +358,45 @@ constexpr get_function get_functions[]{
     get_entity_id,
 };
 static_assert(_countof(get_functions) == light_parameter::count);
+
+
 } // anonymous namespace
 
-gfx::light 
+bool 
+initialize() {
+    return true;
+}
+
+void 
+shutdown() {
+    // TODO: make sure to remove all lights before shutting down graphics.
+    assert([] {
+        bool has_lights{ false };
+        for (const auto& it : light_sets) {
+            has_lights |= it.second.has_lights();
+        }
+        return !has_lights;
+           }());
+
+    for (u32 i{ 0 }; i < frame_buffer_count; ++i) {
+        light_buffers[i].release();
+    }
+}
+
+
+gfx::light
 create(light_init_info info) {
     assert(id::is_valid(info.entity_id));
     return light_sets[info.light_set_key].add(info);
 }
 
-void 
+void
 remove(light_id id, u64 light_set_key) {
     assert(light_sets.count(light_set_key));
     light_sets[light_set_key].remove(id);
 }
 
-void 
+void
 set_parameter(light_id id, u64 light_set_key, light_parameter::parameter parameter, const void* const data, u32 size) {
     assert(data && size);
     assert(light_sets.count(light_set_key));
@@ -292,12 +404,38 @@ set_parameter(light_id id, u64 light_set_key, light_parameter::parameter paramet
     set_functions[parameter](light_sets[light_set_key], id, data, size);
 }
 
-void 
+void
 get_parameter(light_id id, u64 light_set_key, light_parameter::parameter parameter, void* const data, u32 size) {
     assert(data && size);
     assert(light_sets.count(light_set_key));
     assert(parameter < light_parameter::count);
     get_functions[parameter](light_sets[light_set_key], id, data, size);
+}
+
+void 
+update_light_buffers(const d3d12_frame_info& d3d12_info) {
+    const u64 light_set_key{ d3d12_info.info->light_set_key };
+    assert(light_sets.count(light_set_key)); // make sure light set with this key already exists.
+    light_set& set{ light_sets[light_set_key] };
+    if (!set.has_lights()) return;
+
+    // if there're lights in the set, we obtain reference to light_buffer which can be updated using the current light_set
+    set.update_transforms(); // update light data first
+    const u32 frame_index{ d3d12_info.frame_index };
+    d3d12_light_buffer& light_buffer{ light_buffers[frame_index] };
+    light_buffer.update_light_buffers(set, light_set_key, frame_index);
+}
+
+D3D12_GPU_VIRTUAL_ADDRESS 
+non_cullable_light_buffer(u32 frame_index) {
+    const d3d12_light_buffer& light_buffer{ light_buffers[frame_index] };
+    return light_buffer.non_cullable_lights();
+}
+
+u32 
+non_cullable_light_count(u64 light_set_key) {
+    assert(light_sets.count(light_set_key)); // make sure light set with this key already exists.
+    return light_sets[light_set_key].non_cullable_lights_count();
 }
 
 } // namespace mage::gfx::d3d12::light

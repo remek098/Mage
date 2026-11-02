@@ -5,6 +5,7 @@
 #include "D3D12PostProcess.h"
 #include "D3D12Upload.h"
 #include "D3D12Content.h"
+#include "D3D12Light.h"
 #include "D3D12Camera.h"
 #include "Shaders/SharedTypes.h"
 
@@ -286,6 +287,7 @@ get_d3d12_frame_info(const frame_info& info, constant_buffer& cbuffer,
     XMStoreFloat3(&data.CameraDirection, camera.direction());
     data.ViewWidth =  static_cast<f32>(surface.width());
     data.ViewHeight = static_cast<f32>(surface.height());
+    data.NumDirectionalLights = light::non_cullable_light_count(info.light_set_key);
     data.DeltaTime = delta_time;
 
     // allocate as much memory in cbuffer as we need for our global shader data.
@@ -298,8 +300,8 @@ get_d3d12_frame_info(const frame_info& info, constant_buffer& cbuffer,
         &info,
         &camera,
         cbuffer.gpu_address(shader_data),
-        static_cast<u32>(data.ViewWidth),
-        static_cast<u32>(data.ViewHeight),
+        surface.width(),
+        surface.height(),
         frame_index,
         delta_time
     };
@@ -393,10 +395,11 @@ bool initialize() {
 
     // initialize modules
     if (!(shaders::initialize() && 
-            gpass::initialize() && 
-            fx::initialize() && 
-            upload::initialize() &&
-            content::initialize())) {
+          gpass::initialize() && 
+          fx::initialize() && 
+          upload::initialize() &&
+          content::initialize() &&
+          light::initialize())) {
         return failed_init();
     }
 
@@ -420,6 +423,7 @@ void shutdown() {
     }
 
     // shutdown modules.
+    light::shutdown();
     content::shutdown();
     upload::shutdown();
     fx::shutdown();
@@ -557,6 +561,7 @@ void render_surface(surface_id id, frame_info info) {
     gpass::depth_prepass(cmd_list, d3d12_info);
 
     // geometry and lighting pass
+    light::update_light_buffers(d3d12_info);
     gpass::add_transitions_for_gpass(barriers);
     barriers.apply(cmd_list);
     gpass::set_render_targets_for_gpass(cmd_list);

@@ -503,7 +503,7 @@ namespace MageEditor.Content
                 }
 
                 // for testing!!! Remove it later!!!
-                // PackForEngine();
+                PackForEngine();
                 // for testing!!! Remove it later!!!
             }
             catch (Exception ex) {
@@ -640,7 +640,7 @@ namespace MageEditor.Content
             Debug.Assert(data?.Length > 0);
 
             // for testing!!! Remove it later!!!
-            using(var fs = new FileStream(@"..\..\EngineTest\model.model", FileMode.Create)) {
+            using(var fs = new FileStream(@"..\..\x64\model.model", FileMode.Create)) {
                 fs.Write(data, 0, data.Length);
             }
             // for testing!!! Remove it later!!!
