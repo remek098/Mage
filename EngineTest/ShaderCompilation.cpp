@@ -188,7 +188,7 @@ private:
         args.emplace_back(DXC_ARG_DEBUG);
         args.emplace_back(DXC_ARG_SKIP_OPTIMIZATIONS);
 #else
-        args.emplace_back(DXC_ARG_OPTIMIZATION_LEVEL3);
+         args.emplace_back(DXC_ARG_OPTIMIZATION_LEVEL3);
 #endif
         args.emplace_back(DXC_ARG_WARNINGS_ARE_ERRORS);
         args.emplace_back(L"-Qstrip_reflect");             // Strip reflection into a separate blob.
@@ -223,13 +223,42 @@ decltype(auto) get_engine_shaders_path() {
 // Otherwise true.
 bool 
 compiled_shaders_up_to_date() {
+    //auto engine_shaders_path = get_engine_shaders_path();
+    //if (!std::filesystem::exists(engine_shaders_path)) return false;
+    //auto shaders_compilation_time = std::filesystem::last_write_time(engine_shaders_path);
+
+    //std::filesystem::path full_path{};
+    //// check if either of engine shaders source files is newer than the compiled shader file.
+    //// In that case, we need to recompile.
+    //for (u32 i = 0; i < engine_shader::count; ++i) {
+    //    auto& file = engine_shader_files[i];
+
+    //    full_path = shaders_source_path;
+    //    full_path += file.info.file_name;
+    //    if (!std::filesystem::exists(full_path)) return false;
+
+    //    auto shader_file_time = std::filesystem::last_write_time(full_path);
+    //    if (shader_file_time > shaders_compilation_time) {
+    //        return false;
+    //    }
+    //}
+
+    //return true;
+
     auto engine_shaders_path = get_engine_shaders_path();
-    if (!std::filesystem::exists(engine_shaders_path)) return false;
+
+    std::filesystem::path abs_path = std::filesystem::absolute(engine_shaders_path);
+    std::string msg = "Checking shader binary path: " + abs_path.string() + "\n";
+    OutputDebugStringA(msg.c_str());
+
+    if (!std::filesystem::exists(engine_shaders_path) || std::filesystem::file_size(engine_shaders_path) == 0) {
+        OutputDebugStringA("Shader binary missing or empty. Forcing recompile.\n");
+        return false;
+    }
+
     auto shaders_compilation_time = std::filesystem::last_write_time(engine_shaders_path);
 
     std::filesystem::path full_path{};
-    // check if either of engine shaders source files is newer than the compiled shader file.
-    // In that case, we need to recompile.
     for (u32 i = 0; i < engine_shader::count; ++i) {
         auto& file = engine_shader_files[i];
 
@@ -239,10 +268,12 @@ compiled_shaders_up_to_date() {
 
         auto shader_file_time = std::filesystem::last_write_time(full_path);
         if (shader_file_time > shaders_compilation_time) {
+            OutputDebugStringA("Shader source file is newer. Forcing recompile.\n");
             return false;
         }
     }
 
+    OutputDebugStringA("Compiled shaders are up to date.\n");
     return true;
 }
 

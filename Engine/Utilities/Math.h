@@ -3,7 +3,42 @@
 #include "CommonHeaders.h"
 #include "MathTypes.h"
 
+#include <concepts>
+
 namespace mage::math {
+
+constexpr bool
+is_equal(f32 a, f32 b, f32 eps = epsilon) {
+    f32 diff{ a - b };
+    if (diff < 0.f)  diff = -diff;
+    return diff < eps;
+}
+
+namespace {
+template<typename T>
+concept IsVec4 = requires(T v) { { v.x }; { v.y }; { v.z }; { v.w }; };
+
+template<typename T>
+concept IsVec3 = requires(T v) { { v.x }; { v.y }; { v.z }; } && !IsVec4<T>;
+
+template<typename T>
+concept IsVec2 = requires(T v) { { v.x }; { v.y }; } && !IsVec3<T> && !IsVec4<T>;
+} // anonymous namespace
+
+template <typename T> requires IsVec2<T> || IsVec3<T> || IsVec4<T>
+constexpr bool
+is_vec_zero(const T& vector) {
+    if constexpr (IsVec4<T>) {
+        return is_equal(vector.x, 0.f) && is_equal(vector.y, 0.f) && is_equal(vector.z, 0.f) && is_equal(vector.w, 0.f);
+    }
+    else if constexpr (IsVec3<T>) {
+        return is_equal(vector.x, 0.f) && is_equal(vector.y, 0.f) && is_equal(vector.z, 0.f);
+    }
+    else if constexpr (IsVec2<T>) {
+        return is_equal(vector.x, 0.f) && is_equal(vector.y, 0.f);
+    }
+}
+
 template<typename T>
 constexpr T clamp(T value, T min, T max) {
     return (value < min) ? min : (value > max) ? max : value;
@@ -15,8 +50,8 @@ constexpr T clamp(T value, T min, T max) {
 /// <typeparam name="bits">Amount of bits of the returned u32 into which floating point value should be packed.</typeparam>
 /// <param name="f"> -> value between [0.f, 1.f] which will be packed into bits amount of bits inside returned u32.</param>
 /// <returns></returns>
-template<u32 bits> 
-[[nodiscard]] constexpr u32 
+template<u32 bits>
+[[nodiscard]] constexpr u32
 pack_unit_float(f32 f) {
     static_assert(bits <= sizeof(u32) * 8);
     assert(f >= 0.f && f <= 1.f);
@@ -27,7 +62,7 @@ pack_unit_float(f32 f) {
 }
 
 template<u32 bits>
-[[nodiscard]] constexpr f32 
+[[nodiscard]] constexpr f32
 unpack_to_unit_float(u32 i) {
     static_assert(bits <= sizeof(u32) * 8);
     assert(i < (1ui32 << bits));
@@ -36,7 +71,7 @@ unpack_to_unit_float(u32 i) {
 }
 
 template<u32 bits>
-[[nodiscard]] constexpr u32 
+[[nodiscard]] constexpr u32
 pack_float(f32 f, f32 min, f32 max) {
     assert(min < max);
     assert(f <= max && f >= min);
@@ -45,7 +80,7 @@ pack_float(f32 f, f32 min, f32 max) {
 }
 
 template<u32 bits>
-[[nodiscard]] constexpr u32 
+[[nodiscard]] constexpr u32
 unpack_to_float(u32 i, f32 min, f32 max) {
     assert(min < max);
     return unpack_to_unit_float<bits>(i) * (max - min) + min; // literally reverse of pack_float
@@ -53,7 +88,7 @@ unpack_to_float(u32 i, f32 min, f32 max) {
 
 // align by rounding up. Will result in a multiple of "alignment" that is greater than or equal to 'size'
 template<u64 alignment>
-[[nodiscard]] constexpr u64 
+[[nodiscard]] constexpr u64
 align_size_up(u64 size) {
     /*
     nice and fast way of checking if a single bit is set: value && !(value & (value - 1)):
@@ -72,7 +107,7 @@ align_size_up(u64 size) {
 
 // align by rounding down. Will result in a multiple of "alignment" that is less than or equal to 'size'
 template<u64 alignment>
-constexpr u64 
+constexpr u64
 align_size_down(u64 size) {
     static_assert(alignment, "Alignment must be non-zero.");
     constexpr u64 mask{ alignment - 1 };
@@ -109,7 +144,7 @@ align_size_down(u64 size, u64 alignment) {
     return(size & ~mask);
 }
 
-[[nodiscard]] constexpr u64 
+[[nodiscard]] constexpr u64
 calc_crc32_u64(const u8* const data, u64 size) {
     assert(size >= sizeof(u64));
     u64 crc{ 0 };

@@ -112,7 +112,8 @@ void
 create_render_items() {
     // load a model, pretend it belongs to entity_id
     auto _1 = std::thread{ [] { apartment_model_id = load_model("..\\..\\x64\\apartment_model.model"); } };
-    auto _2 = std::thread{ [] { human_model_id = load_model("..\\..\\x64\\human_model.model"); } };
+    // auto _2 = std::thread{ [] { human_model_id = load_model("..\\..\\x64\\human_model.model"); } };
+    auto _2 = std::thread{ [] { human_model_id = load_model("..\\..\\x64\\human_model_joined.model"); } };
     auto _3 = std::thread{ [] { load_shaders(); } };
     /* 
     load material:
@@ -121,14 +122,14 @@ create_render_items() {
     */
 
     apartment_entity_id = create_one_game_entity({}, {}, nullptr).get_id();
-    human_entity_id = create_one_game_entity({1.22f, 0.f, 0.04f}, {}, nullptr).get_id();
+    human_entity_id = create_one_game_entity({1.22f, 0.f, 0.04f}, {}, nullptr /*"rotator_script"*/).get_id();
 
     _1.join();
     _2.join();
     _3.join();
     // add a render item using the model and it's materials.
     create_material();
-    id::id_type human_materials[]{ mat_id , mat_id, mat_id, mat_id, mat_id, mat_id, mat_id, mat_id, mat_id, mat_id, mat_id };
+    id::id_type human_materials[]{ mat_id , mat_id, mat_id, mat_id, mat_id/*, mat_id, mat_id, mat_id, mat_id, mat_id, mat_id*/ };
     // id::id_type materials[]{ mat_id, mat_id, mat_id, mat_id };
     id::id_type apartment_materials[]{ mat_id, mat_id, mat_id, mat_id, mat_id, mat_id, mat_id, mat_id,
                                        mat_id, mat_id, mat_id, mat_id, mat_id, mat_id, mat_id, mat_id,

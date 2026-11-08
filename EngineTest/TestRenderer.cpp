@@ -12,29 +12,15 @@
 #include <fstream>
 #include <filesystem>
 
+//#include <vector>
+//#include <thread>
+#include <Windows.h>
+#include <timeapi.h>
+#pragma comment(lib, "winmm.lib")
+
 #if TEST_RENDERER
 using namespace mage;
 
-class rotator_script;
-REGISTER_SCRIPT(rotator_script);
-class rotator_script : public script::script_entity {
-public:
-    constexpr explicit rotator_script(mage::game_entity::entity entity)
-        : mage::script::script_entity(entity) {}
-
-    virtual void begin_play() {}
-    virtual void update(float dt) {
-        _angle += 0.25f * dt * math::two_pi;
-        if (_angle > -math::two_pi) _angle -= math::two_pi;
-        math::vec3a rot{ 0.f, _angle, 0.f };
-        DirectX::XMVECTOR quat{ DirectX::XMQuaternionRotationRollPitchYawFromVector(DirectX::XMLoadFloat3A(&rot)) };
-        math::vec4 rot_quat{};
-        DirectX::XMStoreFloat4(&rot_quat, quat);
-        set_rotation(rot_quat);
-    }
-private:
-    f32 _angle{ 0.f };
-};
 
 //////////////////////////////////////////////////////////////////////////////////
 #define ENABLE_TEST_WORKERS 0
@@ -76,8 +62,8 @@ struct camera_surface {
     gfx::render_surface surface{};
 } camera;
 
-id::id_type item_id{ id::invalid_id };
-id::id_type model_id{ id::invalid_id };
+//id::id_type item_id{ id::invalid_id };
+//id::id_type model_id{ id::invalid_id };
 
 camera_surface g_surfaces[4];
 time_it timer{};
@@ -247,7 +233,7 @@ void create_camera_surface(camera_surface& surface, platform::window_init_info i
     surface.entity = create_one_game_entity(
         { 0.0f, 3.5f, 15.0f },    // Position: Centered horizontally, slightly elevated, out in front on positive Z
         { 0.15f, 3.14159f, 0.f }, // Rotation: Yawned ~180 degrees (PI radians) to face backward toward the interior
-        nullptr
+        "camera_script"
     );
     surface.camera = gfx::create_camera(gfx::perspective_camera_init_info{ surface.entity.get_id() });
     surface.camera.aspect_ratio((f32)surface.surface.window.width() / surface.surface.window.height());
@@ -270,7 +256,10 @@ bool test_initialize() {
             return false;
     }
 
-    if (!gfx::initialize(gfx::gfx_platform::d3d12)) return false;
+    if (!gfx::initialize(gfx::gfx_platform::d3d12)) {
+        MessageBox(nullptr, L"Gfx Init Failed", L"Error", MB_OK);
+        return false;
+    }
 
     platform::window_init_info info[] = {
             {&win_proc, nullptr, L"Test renderer window 1", 0, 0, 400, 800},
@@ -285,12 +274,12 @@ bool test_initialize() {
 
 
     // load test model
-    std::unique_ptr<u8[]> model;
-    u64 size{ 0 };
-    if (!read_file("..\\..\\enginetest\\model.model", model, size)) return false;
+    // std::unique_ptr<u8[]> model;
+    // u64 size{ 0 };
+    // if (!read_file("..\\..\\enginetest\\model.model", model, size)) return false;
 
-    model_id = content::create_resource(model.get(), content::asset_type::mesh);
-    if (!id::is_valid(model_id)) return false;
+    //model_id = content::create_resource(model.get(), content::asset_type::mesh);
+    //if (!id::is_valid(model_id)) return false;
 
     init_test_workers(buffer_test_worker);
 
@@ -308,7 +297,7 @@ void test_shutdown() {
     destroy_render_items();
     join_test_workers();
 
-    if (id::is_valid(model_id)) content::destroy_resource(model_id, content::asset_type::mesh);
+    // if (id::is_valid(model_id)) content::destroy_resource(model_id, content::asset_type::mesh);
 
     for (u32 i = 0; i < _countof(g_surfaces); ++i)
         destroy_camera_surface(g_surfaces[i]);
@@ -317,6 +306,9 @@ void test_shutdown() {
 }
 
 bool EngineTest::initialize() {
+    // because windows is funny and not doing it would make std::this_thread::sleep_for(std::chrono::milliseconds(10)); actually sleep for 15.6 ms
+    // for some unknown reasons. I guess power optimizations or smth ...
+    timeBeginPeriod(1);
     return test_initialize();
 }
 
@@ -338,14 +330,55 @@ void EngineTest::run() {
             info.light_set_key = 0;
             info.avarage_frame_time = timer.dt_avg();
             info.camera_id = g_surfaces[i].camera.get_id();
+
+            // swapchain presentations get blocked causing e.g. 4 rendered surfaces to lock application to 34 fps,
+            // but when closing 2 of the windows, we are back to 66-67 fps sync.
+            // Might want to delegate surface rendering to seperate threads.
             g_surfaces[i].surface.surface.render(info);
         }
     }
+
+
+    /*
+    NOTE:
+    in order to make setup below work and actually run seperate threads to render surfaces,
+    we would need to change rendering pipeline (D3D12Core.cpp) from global d3d12_command gfx_command instance to
+    Independent Command Contexts per Thread 
+    */
+    
+    /*
+    f32 threshold[]{ 10, 10 };
+    id::id_type render_items[2]{};
+    get_render_items(&render_items[0], 2);
+
+    std::vector<std::jthread> render_threads;
+    render_threads.reserve(_countof(g_surfaces));
+
+    for (u32 i = 0; i < _countof(g_surfaces); ++i) {
+        if (g_surfaces[i].surface.surface.is_valid()) {
+            // Emplace a thread that handles this specific surface index
+            render_threads.emplace_back([this, i, thresholds = threshold, &render_items](std::stop_token st) {
+                gfx::frame_info info{};
+                info.render_item_ids = &render_items[0];
+                info.render_item_count = 2;
+                info.thresholds = thresholds;
+                info.light_set_key = 0;
+                info.avarage_frame_time = timer.dt_avg();
+                info.camera_id = g_surfaces[i].camera.get_id();
+
+                g_surfaces[i].surface.surface.render(info);
+            });
+        }
+    }
+    render_threads.clear();
+    */
+
     timer.end();
 }
 
 void EngineTest::shutdown() {
     test_shutdown();
+    timeEndPeriod(1);
 }
 
 #endif // TEST_RENDERER
