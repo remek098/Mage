@@ -28,7 +28,7 @@ namespace mage::gfx::d3d12 {
             _present_flags = DXGI_PRESENT_ALLOW_TEARING;
         }
 
-        //_allow_tearing = _present_flags = 0;
+        // _allow_tearing = _present_flags = 0;
 
         DXGI_SWAP_CHAIN_DESC1 desc{}; // using this to be able to set format as we please.
         desc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;

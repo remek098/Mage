@@ -22,7 +22,7 @@ math::u32vec2                   dimensions{ initial_dimensions }; // remember th
 constexpr f32                   clear_value[4]{ 0.5f, 0.5, 0.5f, 1.f }; // lighter gray color in debug build
 
 #else
-constexpr f32                   clear_value[4]{}; // black color to clear render target
+constexpr f32                   clear_value[4]{ 0.f, 0.f, 0.f, 1.f }; // black color to clear render target
 
 #endif
 
