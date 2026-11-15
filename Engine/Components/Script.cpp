@@ -16,6 +16,8 @@ utl::vector<id::id_type>                id_mapping;
 utl::vector<id::gen_type>               generations;
 utl::deque<script_id>                   free_ids;
 
+utl::vector<script_id>                  pending_begin_play;
+
 // so that we can track all changed to entities that have their transform changed (changed are cached and then at proper time in a frame applied)
 // those hold changes that happen in the game scripts.
 utl::vector<transform::component_cache> transform_cache;
@@ -164,6 +166,9 @@ component create(const init_info& info, game_entity::entity entity) {
     script_entities.emplace_back(info.script_creator(entity));
     assert(script_entities.back()->get_id() == entity.get_id());    // should always be true
     id_mapping[id::index(id)] = index;
+
+    pending_begin_play.push_back(id); // indicate that we have to do begin_play()
+
     return component{ id };
 }
 
@@ -174,6 +179,9 @@ void remove(component c) {
     assert(c.is_valid() && exists(c.get_id()));
     const script_id id{ c.get_id() };
     const id::id_type index{ id_mapping[id::index(id)] };
+
+    if (script_entities[index]) script_entities[index]->end_play();
+
     // get id of last script.
     const script_id last_id{ script_entities.back()->script().get_id() };
     utl::erase_unordered(script_entities, index);
@@ -182,6 +190,17 @@ void remove(component c) {
 }
 
 void update(f32 dt) {
+    if (!pending_begin_play.empty()) {
+        utl::vector<script_id> to_init;
+        to_init.swap(pending_begin_play); // moves vector
+        for (const auto& id : to_init) {
+            if (exists(id)) {
+                const id::id_type index{ id_mapping[id::index(id)] };
+                script_entities[index]->begin_play();
+            }
+        }
+    }
+
     for ( auto& ptr : script_entities ) {
         ptr->update(dt);
     }
@@ -196,6 +215,18 @@ void update(f32 dt) {
         cache_map.clear();
 #endif
     }
+}
+
+void 
+shutdown() {
+    for (auto &ptr : script_entities) {
+        if (ptr) ptr->end_play();
+    }
+    script_entities.clear();
+    pending_begin_play.clear();
+    id_mapping.clear();
+    generations.clear();
+    free_ids.clear();
 }
 
 void 

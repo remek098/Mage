@@ -46,26 +46,35 @@ public:
         _desired_spherical = _spherical = DirectX::XMLoadFloat3(&rot);
     }
 
-    virtual void begin_play() {}
-    virtual void update(f32 dt) {
+    virtual void begin_play() override {}
+    virtual void update(f32 dt) override {
         _delta_time = dt;
 
         math::vec3 move{};
         input::input_value value;
-        constexpr input::input_source::type kb{ input::input_source::keyboard };
+        /*constexpr input::input_source::type kb{ input::input_source::keyboard };
         input::get(kb, input::input_code::key_w, value); move.z += value.current.x;
         input::get(kb, input::input_code::key_s, value); move.z -= value.current.x;
         input::get(kb, input::input_code::key_a, value); move.x += value.current.x;
         input::get(kb, input::input_code::key_d, value); move.x -= value.current.x;
         input::get(kb, input::input_code::key_e, value); move.y += value.current.x;
-        input::get(kb, input::input_code::key_q, value); move.y -= value.current.x;
+        input::get(kb, input::input_code::key_q, value); move.y -= value.current.x;*/
+        const u64 binding{ std::hash<std::string>()("move") };
+        input::get(binding, value);
+        move = value.current;
 
         if (!math::is_vec_zero(move)) {
             using namespace DirectX;
+            const f32 fps_scale{ dt / 0.016667f };
             math::vec4 rot{ rotation() };
-            DirectX::XMVECTOR d{ XMVector3Rotate(XMLoadFloat3(&move) * 0.2f, XMLoadFloat4(&rot)) };
-            _desired_position += d;
+            DirectX::XMVECTOR d{ XMVector3Rotate(XMLoadFloat3(&move) * 0.08f * fps_scale, 
+                                                 XMLoadFloat4(&rot)) };
+            if (_position_acceleraton < 1.f) _position_acceleraton += (0.02f * fps_scale);
+            _desired_position += (d * _position_acceleraton);
             _b_move_position = true;
+        }
+        else if (_b_move_position) {
+            _position_acceleraton = 0.f;
         }
 
         if (_b_move_position || _b_move_rotation) {
@@ -138,6 +147,7 @@ private:
     DirectX::XMVECTOR                   _position;
     DirectX::XMVECTOR                   _spherical;
     f32                                 _delta_time;
+    f32                                 _position_acceleraton{ 0.f };
     bool                                _b_move_position{ false };
     bool                                _b_move_rotation{ false };
 };

@@ -41,6 +41,7 @@ namespace mage {
 			virtual ~script_entity() = default;
 			virtual void begin_play() {}
 			virtual void update(float) {}
+			virtual void end_play() {}
 
 		protected:
 			constexpr explicit script_entity(game_entity::entity entity)

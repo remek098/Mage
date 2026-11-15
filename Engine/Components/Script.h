@@ -14,4 +14,6 @@ namespace mage::script {
 	component		create(const init_info& info, game_entity::entity entity);
 	void			remove(component c);
 	void			update(f32 dt);
+
+	void			shutdown();
 }
