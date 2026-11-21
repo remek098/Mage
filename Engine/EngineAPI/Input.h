@@ -142,7 +142,8 @@ struct input_code {
         key_f12,
 
         key_numlock,
-        key_scrolllock
+        key_scrolllock,
+        key_tilde
     };
 };
 

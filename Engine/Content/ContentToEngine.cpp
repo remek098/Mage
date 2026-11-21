@@ -33,7 +33,7 @@ public:
 	}
 
 	u32 lod_from_treshold(f32 treshold) {
-		assert(treshold > 0);
+		assert(treshold >= 0);
 		if (_lod_count == 1) return 0;
 
 		for (u32 i{ _lod_count - 1 }; i > 0; --i) {

@@ -350,11 +350,12 @@ bool EngineTest::initialize() {
 
 void EngineTest::run() {
     timer.begin();
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    // std::this_thread::sleep_for(std::chrono::milliseconds(10));
     script::update(timer.dt_avg());
     for (u32 i = 0; i < _countof(g_surfaces); ++i) {
         if (g_surfaces[i].surface.surface.is_valid()) {
-            f32 threshold[]{ 10, 10 };
+            //f32 threshold[]{ 10, 10 };
+            f32 thresholds[2]{};
 
             id::id_type render_items[2]{};
             get_render_items(&render_items[0], 2);
@@ -362,11 +363,12 @@ void EngineTest::run() {
             gfx::frame_info info{};
             info.render_item_ids = &render_items[0];
             info.render_item_count = 2;
-            info.thresholds = threshold;
+            info.thresholds = &thresholds[0];
             info.light_set_key = 0;
             info.avarage_frame_time = timer.dt_avg();
             info.camera_id = g_surfaces[i].camera.get_id();
 
+            assert(_countof(thresholds) >= info.render_item_count);
             // swapchain presentations get blocked causing e.g. 4 rendered surfaces to lock application to 34 fps,
             // but when closing 2 of the windows, we are back to 66-67 fps sync.
             // Might want to delegate surface rendering to seperate threads.

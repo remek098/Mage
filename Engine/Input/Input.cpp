@@ -42,19 +42,15 @@ unbind(input_source::type type, input_code::code code) {
     assert(input_bindings.count(binding_key));
     input_binding& binding{ input_bindings[binding_key] };
     utl::vector<input_source>& sources{ binding.sources };
-    u32 index{ u32_invalid_id };
     for (u32 i{ 0 }; i < sources.size(); ++i) {
         if (sources[i].source_type == type && sources[i].code == code) {
             assert(sources[i].binding == source_binding_map[key]);
-            index = i;
+            utl::erase_unordered(sources, i);
+            source_binding_map.erase(key);
             break;
         }
     }
 
-    if (index != u32_invalid_id) {
-        utl::erase_unordered(sources, index);
-        source_binding_map.erase(key);
-    }
 
     // if collection of input sources is empty, we can delete whole input binding
     if (!sources.size()) {
@@ -127,7 +123,7 @@ get(u64 binding, input_value& value) {
         return;
     }
 
-    utl::vector<input_source>& sources{ input_bindings[binding].sources };
+    utl::vector<input_source>& sources{ input_binding.sources };
     input_value sub_value{};
     input_value result{};
 
@@ -144,8 +140,9 @@ get(u64 binding, input_value& value) {
             (&result.current.x)[source.axis] += (current - previous) * source.multiplier;
         }
         else {
-            (&result.previous.x)[source.axis] += sub_value.previous.x * source.multiplier;
-            (&result.current.x)[source.axis] += sub_value.current.x * source.multiplier;
+            // specific source axis mapping to any binding axis
+            (&result.previous.x)[source.axis] += (&sub_value.previous.x)[source.source_axis] * source.multiplier;
+            (&result.current.x)[source.axis] +=  (&sub_value.current.x)[source.source_axis] * source.multiplier;
         }
     }
     input_binding.value = result;

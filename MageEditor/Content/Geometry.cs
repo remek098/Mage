@@ -503,7 +503,7 @@ namespace MageEditor.Content
                 }
 
                 // for testing!!! Remove it later!!!
-                PackForEngine();
+                // PackForEngine();
                 // for testing!!! Remove it later!!!
             }
             catch (Exception ex) {
