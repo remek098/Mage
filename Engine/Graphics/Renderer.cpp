@@ -92,6 +92,25 @@ light::intensity(f32 intensity) const {
 }
 
 void 
+light::attenuation(math::vec3 attenuation) const {
+    assert(is_valid());
+    gfx_interface.light.set_parameter(_id, _light_set_key, light_parameter::attenuation, &attenuation, sizeof(attenuation));
+}
+
+void 
+light::range(f32 range) const {
+    assert(is_valid());
+    gfx_interface.light.set_parameter(_id, _light_set_key, light_parameter::range, &range, sizeof(range));
+}
+
+void 
+light::cone_angles(f32 umbra, f32 penumbra) const {
+    assert(is_valid());
+    gfx_interface.light.set_parameter(_id, _light_set_key, light_parameter::umbra, &umbra, sizeof(umbra));
+    gfx_interface.light.set_parameter(_id, _light_set_key, light_parameter::penumbra, &penumbra, sizeof(penumbra));
+}
+
+void 
 light::color(math::vec3 color) const {
     assert(is_valid());
     gfx_interface.light.set_parameter(_id, _light_set_key, light_parameter::color, &color, sizeof(color));
@@ -119,6 +138,38 @@ light::color() const {
     math::vec3 color;
     gfx_interface.light.get_parameter(_id, _light_set_key, light_parameter::color, &color, sizeof(color));
     return color;
+}
+
+math::vec3 
+light::attenuation() const {
+    assert(is_valid());
+    math::vec3 attenuation;
+    gfx_interface.light.get_parameter(_id, _light_set_key, light_parameter::attenuation, &attenuation, sizeof(attenuation));
+    return attenuation;
+}
+
+f32 
+light::range() const {
+    assert(is_valid());
+    f32 range;
+    gfx_interface.light.get_parameter(_id, _light_set_key, light_parameter::range, &range, sizeof(range));
+    return range;
+}
+
+f32 
+light::umbra() const {
+    assert(is_valid());
+    f32 umbra;
+    gfx_interface.light.get_parameter(_id, _light_set_key, light_parameter::umbra, &umbra, sizeof(umbra));
+    return umbra;
+}
+
+f32 
+light::penumbra() const {
+    assert(is_valid());
+    f32 penumbra;
+    gfx_interface.light.get_parameter(_id, _light_set_key, light_parameter::penumbra, &penumbra, sizeof(penumbra));
+    return penumbra;
 }
 
 light::type 

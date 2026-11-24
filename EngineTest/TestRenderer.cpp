@@ -349,6 +349,11 @@ bool EngineTest::initialize() {
 }
 
 void EngineTest::run() {
+    static u32 counter{ 0 };
+    static u32 light_set_key{ 0 };
+    ++counter;
+    if ((counter % 90) == 0) light_set_key = (light_set_key + 1) % 2;
+
     timer.begin();
     // std::this_thread::sleep_for(std::chrono::milliseconds(10));
     script::update(timer.dt_avg());
@@ -364,7 +369,7 @@ void EngineTest::run() {
             info.render_item_ids = &render_items[0];
             info.render_item_count = 2;
             info.thresholds = &thresholds[0];
-            info.light_set_key = 0;
+            info.light_set_key = light_set_key;
             info.avarage_frame_time = timer.dt_avg();
             info.camera_id = g_surfaces[i].camera.get_id();
 
