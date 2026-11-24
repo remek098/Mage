@@ -479,42 +479,59 @@ private:
         assert(index2 < _cullable_owners.size());
         assert(id::is_valid(_cullable_owners[index1]));
         assert(id::is_valid(_cullable_owners[index2]));
-        // NOTE: remember that light_owners are in the free_list and will stay in the same slot until they're removed.
-        //       the light data however is moved around to keep the array contiguous.
-        light_owner& owner1{ _owners[_cullable_owners[index1]] };
-        light_owner& owner2{ _owners[_cullable_owners[index2]] };
-        assert(owner1.data_index == index1);
-        assert(owner2.data_index == index2);
-        owner1.data_index = index2;
-        owner2.data_index = index1;
-        
-        // swap light parameters.
         assert(index1 < _cullable_lights.size());
         assert(index2 < _cullable_lights.size());
-        std::swap(_cullable_lights[index1], _cullable_lights[index2]);
-
-        // swap culling info.
         assert(index1 < _culling_infos.size());
         assert(index2 < _culling_infos.size());
-        std::swap(_culling_infos[index1], _culling_infos[index2]);
-
-        // swap entity ids.
         assert(index1 < _cullable_entity_ids.size());
         assert(index2 < _cullable_entity_ids.size());
-        std::swap(_cullable_entity_ids[index1], _cullable_entity_ids[index2]);
+        // light might be enabled/disabled, but cannot be a removed light.
+        assert(id::is_valid(_cullable_owners[index1]) || id::is_valid(_cullable_owners[index2]));
 
-        // swap owner indices.
-        std::swap(_cullable_owners[index1], _cullable_owners[index2]);
+        // if one of the lights is a removed light, we make sure it's index is always held by index1 variable.
+        if (!id::is_valid(_cullable_owners[index2])) {
+            std::swap(index1, index2);
+        }
 
-        // make sure that all indices are consistent.
-        assert(_owners[_cullable_owners[index1]].entity_id == _cullable_entity_ids[index1]);
-        assert(_owners[_cullable_owners[index2]].entity_id == _cullable_entity_ids[index2]);
+        // handle the case where index1 was the removed light.
+        if (!id::is_valid(_cullable_owners[index1])) {
+            light_owner& owner2{ _owners[_cullable_owners[index2]] };
+            assert(owner2.data_index == index2);
+            owner2.data_index = index1;
 
-        // set dirty bits
-        assert(index1 < _dirty_bits.size());
-        assert(index2 < _dirty_bits.size());
-        _dirty_bits[index1] = dirty_bits_mask;
-        _dirty_bits[index2] = dirty_bits_mask;
+            _cullable_lights[index1] = _cullable_lights[index2];
+            _culling_infos[index1] = _culling_infos[index2];
+            _cullable_entity_ids[index1] = _cullable_entity_ids[index2];
+            std::swap(_cullable_owners[index1], _cullable_owners[index2]);
+            _dirty_bits[index1] = dirty_bits_mask;
+            assert(_owners[_cullable_owners[index1]].entity_id == _cullable_entity_ids[index1]);
+            id::is_valid(_cullable_owners[index2]);
+        }
+        else { // handle  the case where both lights are valid
+            // NOTE: remember that light_owners are in the free_list and will stay in the same slot until they're removed.
+            //       the light data however is moved around to keep the array contiguous.
+            light_owner& owner1{ _owners[_cullable_owners[index1]] };
+            light_owner& owner2{ _owners[_cullable_owners[index2]] };
+            assert(owner1.data_index == index1);
+            assert(owner2.data_index == index2);
+            owner1.data_index = index2;
+            owner2.data_index = index1;
+
+            std::swap(_cullable_lights[index1], _cullable_lights[index2]);
+            std::swap(_culling_infos[index1], _culling_infos[index2]);
+            std::swap(_cullable_entity_ids[index1], _cullable_entity_ids[index2]);
+            std::swap(_cullable_owners[index1], _cullable_owners[index2]);
+
+            // make sure that all indices are consistent.
+            assert(_owners[_cullable_owners[index1]].entity_id == _cullable_entity_ids[index1]);
+            assert(_owners[_cullable_owners[index2]].entity_id == _cullable_entity_ids[index2]);
+
+            // set dirty bits
+            assert(index1 < _dirty_bits.size());
+            assert(index2 < _dirty_bits.size());
+            _dirty_bits[index1] = dirty_bits_mask;
+            _dirty_bits[index2] = dirty_bits_mask;
+        }
     }
     
 private:
